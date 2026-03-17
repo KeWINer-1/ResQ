@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>resq - Térkép</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="icon" href="src/favicon.ico" />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="index.html">
+        <img src="src/logo.png" alt="resq logo" />
+      </a>
+      <nav class="nav-links">
+        <a href="index.html">Kezdőlap</a>
+        <a href="auth.html" data-auth-link>Belépés</a>
+        <a href="provider.html">Autómentő mód</a>
+        <a href="support.html">Üzenet adminnak</a>
+      </nav>
+    </header>
+
+    <section class="map-layout">
+      <aside class="sidebar">
+        <h2>Közeli autómentők</h2>
+        <p class="notice" id="map-message"></p>
+        <div class="card" id="request-status-card" style="display: none; margin-bottom: 12px;">
+          <strong>Mentés státusz</strong>
+          <p class="notice" id="request-status-text" style="margin: 8px 0 0;"></p>
+          <div class="cta-row" style="margin-top: 12px;">
+            <button class="btn secondary" id="request-status-hide" type="button">Bezár</button>
+          </div>
+        </div>
+        <div class="top-actions">
+          <label>Radius km</label>
+          <input id="radius-input" type="number" min="1" value="20" style="max-width: 90px;" />
+          <label>Képesség</label>
+          <select id="capability-select">
+            <option value="">Mind</option>
+            <option value="csorlo">Csorlo</option>
+            <option value="treler">Treler</option>
+            <option value="motormentes">Motormentes</option>
+            <option value="melygarazs">Melygarazs</option>
+            <option value="4x4">4x4</option>
+            <option value="autopalya">Autopalya</option>
+          </select>
+          <button class="btn" id="refresh-btn">Frissítés</button>
+        </div>
+        <div id="providers-list"></div>
+      </aside>
+      <div id="map" class="map"></div>
+    </section>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="js/common.js"></script>
+    <script src="js/map.js"></script>
+  </body>
+</html>
