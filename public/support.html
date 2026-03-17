@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>resq - Üzenet az adminnak</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" href="src/favicon.ico" />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="index.html">
+        <img src="src/logo.png" alt="resq logo" />
+      </a>
+      <nav class="nav-links">
+        <a href="index.html">Kezdőlap</a>
+        <a href="map.html">Térkép</a>
+        <a href="provider.html">Autómentő mód</a>
+        <a href="support.html">Üzenet adminnak</a>
+        <a href="auth.html" data-auth-link>Belépés</a>
+      </nav>
+    </header>
+
+    <section class="section">
+      <div class="form-card">
+        <h2>Privát üzenet az adminnak</h2>
+        <p class="notice" id="support-message"></p>
+
+        <div id="support-chat" style="display: none;">
+          <div class="chat-box" id="support-messages"></div>
+          <div class="split" style="grid-template-columns: 1fr auto; margin-top: 12px;">
+            <div>
+              <input id="support-input" type="text" placeholder="Írj ide…" />
+            </div>
+            <div>
+              <button class="btn" id="support-send" type="button">Küldés</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script src="js/common.js"></script>
+    <script src="js/support.js"></script>
+  </body>
+</html>
+
