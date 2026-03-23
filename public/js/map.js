@@ -1,0 +1,1067 @@
+const providersList = document.getElementById("providers-list");
+const radiusInput = document.getElementById("radius-input");
+const capabilitySelect = document.getElementById("capability-select");
+const refreshBtn = document.getElementById("refresh-btn");
+const mapMessage = document.getElementById("map-message");
+const gpsAccuracyEl = document.getElementById("gps-accuracy");
+const destinationInput = document.getElementById("destination-input");
+const destinationCalcBtn = document.getElementById("destination-calc-btn");
+const destinationClearBtn = document.getElementById("destination-clear-btn");
+const destinationStatus = document.getElementById("destination-status");
+const requestStatusCard = document.getElementById("request-status-card");
+const requestStatusText = document.getElementById("request-status-text");
+const requestStatusPill = document.getElementById("request-status-pill");
+const requestStatusEta = document.getElementById("request-status-eta");
+const requestStatusDistance = document.getElementById("request-status-distance");
+const requestStatusPrice = document.getElementById("request-status-price");
+const requestStatusUpdated = document.getElementById("request-status-updated");
+const requestStatusTimeline = document.getElementById("request-status-timeline");
+const requestStatusActions = document.getElementById("request-status-actions");
+const requestStatusControl = document.getElementById("request-status-control");
+const requestCallBtn = document.getElementById("request-call-btn");
+const requestMessageBtn = document.getElementById("request-message-btn");
+const requestCancelBtn = document.getElementById("request-cancel-btn");
+const requestNewBtn = document.getElementById("request-new-btn");
+const requestChat = document.getElementById("request-chat");
+const requestChatBox = document.getElementById("request-chat-box");
+const requestChatInput = document.getElementById("request-chat-input");
+const requestChatSend = document.getElementById("request-chat-send");
+const requestRatingPanel = document.getElementById("request-rating");
+const requestRatingStars = document.getElementById("request-rating-stars");
+const requestRatingComment = document.getElementById("request-rating-comment");
+const requestRatingSend = document.getElementById("request-rating-send");
+const requestStatusHideBtn = document.getElementById("request-status-hide");
+const providerSelectCard = document.getElementById("provider-select-card");
+const providerSelectAvatar = document.getElementById("provider-select-avatar");
+const providerSelectName = document.getElementById("provider-select-name");
+const providerSelectSub = document.getElementById("provider-select-sub");
+const providerSelectStatus = document.getElementById("provider-select-status");
+const providerSelectEta = document.getElementById("provider-select-eta");
+const providerSelectPrice = document.getElementById("provider-select-price");
+const providerSelectTags = document.getElementById("provider-select-tags");
+const providerSelectCall = document.getElementById("provider-select-call");
+const providerSelectRequest = document.getElementById("provider-select-request");
+const providerSelectClose = document.getElementById("provider-select-close");
+const mobileListToggle = document.getElementById("mobile-list-toggle");
+const sidebarEl = document.querySelector(".sidebar");
+const statusToast = document.getElementById("status-toast");
+const providersHeader = document.getElementById("providers-header");
+const providersHint = document.getElementById("providers-hint");
+
+const currentRole = getUserRole();
+if (currentRole === "Provider") {
+  window.location.href = "/provider.html";
+}
+if (currentRole === "Admin") {
+  window.location.href = "/admin.html";
+}
+
+let map;
+let userMarker;
+let providerMarkers = [];
+let activeProviderMarker = null;
+let radiusCircle = null;
+let userLocation = null;
+const fallbackLocation = { lat: 47.4979, lng: 19.0402 };
+let activeRequestId = null;
+let requestPollTimer = null;
+let lastJobStatus = null;
+let lastRequestStatus = null;
+let lastRouteFetchAt = 0;
+let lastRouteKey = null;
+let lastRouteData = null;
+let routeFetchInFlight = false;
+let lastMessageFetchAt = 0;
+let lastMessageId = 0;
+let activeJobId = null;
+let userWatchId = null;
+let lastUserUpdateAt = 0;
+let lastUserCoords = null;
+let selectedProvider = null;
+let destinationCoords = null;
+let tripDistanceKm = null;
+let tripDurationMinutes = null;
+let tripRouteKey = null;
+let tripRouteFetchAt = 0;
+
+function showRequestStatus(message) {
+  if (requestStatusCard && requestStatusText) {
+    requestStatusText.textContent = message || "";
+    requestStatusCard.style.display = message ? "block" : "none";
+  }
+}
+
+function getMyUserId() {
+  const token = getToken();
+  const data = decodeJwtPayload(token);
+  return data?.userId || null;
+}
+
+function jobStatusLabel(status) {
+  if (!status) return null;
+  const labels = {
+    accepted: "Elfogadva",
+    enroute: "Úton van",
+    arrived: "Megérkezett",
+    completed: "Kész",
+    cancelled: "Lemondva"
+  };
+  return labels[status] || status;
+}
+
+function formatCurrency(value) {
+  if (!Number.isFinite(value)) return "Nincs adat";
+  return `${Math.round(value).toLocaleString("hu-HU")} Ft`;
+}
+
+function formatRelativeTime(dateValue) {
+  if (!dateValue) return "Nincs adat";
+  const ts = typeof dateValue === "string" ? Date.parse(dateValue) : Number(dateValue);
+  if (!Number.isFinite(ts)) return "Nincs adat";
+  const diffMs = Date.now() - ts;
+  if (diffMs < 60000) return "Most frissítve";
+  const minutes = Math.round(diffMs / 60000);
+  if (minutes < 60) return `${minutes} perc`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (mins === 0) return `${hours} óra`;
+  return `${hours} óra ${mins} perc`;
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const toRad = (value) => (value * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function shouldRefreshProviders(lat, lng) {
+  const now = Date.now();
+  if (!lastUserCoords) return true;
+  const distanceKm = haversineKm(lat, lng, lastUserCoords.lat, lastUserCoords.lng);
+  if (distanceKm > 0.05) return true;
+  if (now - lastUserUpdateAt > 15000) return true;
+  return false;
+}
+
+function formatDistance(distanceKm) {
+  if (!Number.isFinite(distanceKm)) return "Nincs adat";
+  if (distanceKm < 1) {
+    return `${Math.round(distanceKm * 1000)} m`;
+  }
+  return `${Math.round(distanceKm * 10) / 10} km`;
+}
+
+function formatEta(minutes) {
+  if (!Number.isFinite(minutes)) return "Nincs adat";
+  if (minutes < 1) return "1 perc";
+  if (minutes < 60) return `${Math.round(minutes)} perc`;
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  if (mins === 0) return `${hours} óra`;
+  return `${hours} óra ${mins} perc`;
+}
+
+function estimateEtaMinutes(distanceKm) {
+  if (!Number.isFinite(distanceKm) || distanceKm <= 0) return null;
+  const speedKmh = distanceKm < 3 ? 25 : 40;
+  const minutes = (distanceKm / speedKmh) * 60;
+  return Math.max(3, Math.round(minutes));
+}
+
+function estimatePrice(distanceKm, provider) {
+  const baseFee = Number(provider?.baseFee);
+  const perKmFee = Number(provider?.perKmFee);
+  if (!Number.isFinite(distanceKm) || !Number.isFinite(baseFee) || !Number.isFinite(perKmFee)) {
+    return null;
+  }
+  return baseFee + perKmFee * distanceKm;
+}
+
+async function geocodeAddress(query) {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
+    query
+  )}`;
+  const response = await fetch(url, {
+    headers: { "Accept-Language": "hu" }
+  });
+  if (!response.ok) throw new Error("Nem sikerült a címet beolvasni.");
+  const data = await response.json();
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error("Nincs találat a címre.");
+  }
+  return {
+    lat: parseFloat(data[0].lat),
+    lng: parseFloat(data[0].lon),
+    displayName: data[0].display_name
+  };
+}
+
+async function fetchTripRoute(from, to) {
+  const key = `${from.lat.toFixed(5)},${from.lng.toFixed(5)}|${to.lat.toFixed(5)},${to.lng.toFixed(5)}`;
+  const now = Date.now();
+  if (tripRouteKey === key && now - tripRouteFetchAt < 45000 && tripDistanceKm) {
+    return { distanceKm: tripDistanceKm, durationMinutes: tripDurationMinutes };
+  }
+  const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Nem sikerült útvonalat számolni.");
+  const data = await response.json();
+  const route = data?.routes?.[0];
+  if (!route) throw new Error("Nem található útvonal.");
+  tripDistanceKm = route.distance / 1000;
+  tripDurationMinutes = route.duration / 60;
+  tripRouteKey = key;
+  tripRouteFetchAt = now;
+  return { distanceKm: tripDistanceKm, durationMinutes: tripDurationMinutes };
+}
+
+function updateTimeline(status) {
+  if (!requestStatusTimeline) return;
+  const steps = Array.from(requestStatusTimeline.querySelectorAll(".timeline-step"));
+  if (steps.length === 0) return;
+  const order = ["new", "accepted", "enroute", "arrived", "completed"];
+  if (status === "cancelled") {
+    steps.forEach((step) => {
+      step.classList.remove("is-active", "is-done");
+      step.classList.add("is-cancelled");
+    });
+    return;
+  }
+
+  const currentIndex = order.indexOf(status);
+  steps.forEach((step) => {
+    const stepKey = step.getAttribute("data-step");
+    const stepIndex = order.indexOf(stepKey);
+    step.classList.remove("is-active", "is-done", "is-cancelled");
+    if (stepIndex === -1 || currentIndex === -1) return;
+    if (stepIndex < currentIndex) {
+      step.classList.add("is-done");
+    } else if (stepIndex === currentIndex) {
+      step.classList.add("is-active");
+    }
+  });
+}
+
+function updateProviderMarker(lat, lng, name) {
+  if (!map) return;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    if (activeProviderMarker) {
+      activeProviderMarker.remove();
+      activeProviderMarker = null;
+    }
+    return;
+  }
+  if (!activeProviderMarker) {
+    const truckIcon = L.divIcon({
+      className: "truck-marker",
+      html: "<div class=\"marker marker-provider marker-active\"><span>🚗</span></div>",
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+    activeProviderMarker = L.marker([lat, lng], { icon: truckIcon }).addTo(map);
+  } else {
+    activeProviderMarker.setLatLng([lat, lng]);
+  }
+  if (name) {
+    activeProviderMarker.bindPopup(`${name} (autómentő)`);
+  }
+}
+
+async function fetchRouteEta(from, to) {
+  if (routeFetchInFlight) return lastRouteData;
+  const key = `${from.lat.toFixed(5)},${from.lng.toFixed(5)}|${to.lat.toFixed(5)},${to.lng.toFixed(5)}`;
+  const now = Date.now();
+  if (lastRouteKey === key && lastRouteData && now - lastRouteFetchAt < 45000) {
+    return lastRouteData;
+  }
+  routeFetchInFlight = true;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`;
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!response.ok) throw new Error("OSRM hiba");
+    const data = await response.json();
+    const route = data?.routes?.[0];
+    if (!route) throw new Error("Nincs útvonal");
+    const distanceKm = route.distance / 1000;
+    const durationMinutes = route.duration / 60;
+    lastRouteKey = key;
+    lastRouteData = { distanceKm, durationMinutes };
+    lastRouteFetchAt = Date.now();
+    return lastRouteData;
+  } catch {
+    return null;
+  } finally {
+    routeFetchInFlight = false;
+  }
+}
+
+function updateStatusActions(provider, isActive) {
+  const phone = provider?.phone || "";
+  const hasPhone = Boolean(phone);
+
+  if (requestCallBtn) {
+    requestCallBtn.href = hasPhone ? `tel:${phone}` : "#";
+    requestCallBtn.style.display = hasPhone && isActive ? "inline-flex" : "none";
+  }
+  if (requestMessageBtn) {
+    requestMessageBtn.href = hasPhone ? `sms:${phone}` : "#";
+    requestMessageBtn.style.display = hasPhone && isActive ? "inline-flex" : "none";
+  }
+  if (requestStatusActions) {
+    const showActions = hasPhone && isActive;
+    requestStatusActions.style.display = showActions ? "flex" : "none";
+  }
+}
+
+function showProviderOverlay(provider) {
+  selectedProvider = provider || null;
+  if (!providerSelectCard) return;
+  if (!provider) {
+    providerSelectCard.style.display = "none";
+    return;
+  }
+  document.querySelectorAll(".ride-card").forEach((card) => {
+    card.classList.toggle("selected", card.dataset.id === String(provider.id));
+  });
+  const rating =
+    provider.rating && provider.rating !== "N/A" ? String(provider.rating) : null;
+  const vehicle = "Autómentő";
+  if (providerSelectAvatar) {
+    const initials = provider.name
+      ? provider.name
+          .split(" ")
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0].toUpperCase())
+          .join("")
+      : "AM";
+    providerSelectAvatar.textContent = initials;
+  }
+  if (providerSelectName) {
+    providerSelectName.textContent = provider.name || "Autómentő";
+  }
+  if (providerSelectSub) {
+    providerSelectSub.textContent = rating ? `★ ${rating} · ${vehicle}` : vehicle;
+  }
+  if (providerSelectStatus) {
+    providerSelectStatus.textContent = "Online";
+  }
+  if (providerSelectEta) {
+    providerSelectEta.textContent = `~${formatEta(estimateEtaMinutes(provider.distanceKm))}`;
+  }
+  if (providerSelectPrice) {
+    const usedDistance = Number.isFinite(tripDistanceKm) ? tripDistanceKm : provider.distanceKm;
+    const estimate = estimatePrice(usedDistance, provider);
+    providerSelectPrice.textContent = estimate ? `${formatCurrency(estimate)}-tól` : "Nincs adat";
+  }
+  if (providerSelectTags) {
+    const caps = provider.capabilities || [];
+    providerSelectTags.innerHTML =
+      caps.length > 0
+        ? caps.map((cap) => `<span class="pill">${cap}</span>`).join(" ")
+        : "<span class=\"pill\">Autómentés</span>";
+  }
+  if (providerSelectCall) {
+    if (provider.phone) {
+      providerSelectCall.textContent = `Hívás: ${provider.phone}`;
+      providerSelectCall.href = `tel:${provider.phone}`;
+      providerSelectCall.style.pointerEvents = "auto";
+      providerSelectCall.style.opacity = "1";
+    } else {
+      providerSelectCall.textContent = "Hívás nem elérhető";
+      providerSelectCall.href = "#";
+      providerSelectCall.style.pointerEvents = "none";
+      providerSelectCall.style.opacity = "0.6";
+    }
+  }
+  providerSelectCard.style.display = "block";
+}
+
+function renderRequestMessages(messages) {
+  if (!requestChatBox) return;
+  const myUserId = getMyUserId();
+  if (!messages || messages.length === 0) {
+    requestChatBox.innerHTML = "<p class=\"notice\">Még nincs üzenet.</p>";
+    return;
+  }
+  requestChatBox.innerHTML = messages
+    .map((msg) => {
+      const isMe = myUserId && msg.SenderUserId === myUserId;
+      const roleClass = isMe ? "me" : "admin";
+      const sender =
+        msg.SenderProviderName || msg.SenderEmail || (msg.SenderRole || "User");
+      const time = msg.CreatedAt ? new Date(msg.CreatedAt).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" }) : "";
+      return `<div class="chat-line ${roleClass}">
+        <div class="chat-meta">${sender}${time ? ` · ${time}` : ""}</div>
+        <div class="chat-bubble">${msg.Body}</div>
+      </div>`;
+    })
+    .join("");
+  requestChatBox.scrollTop = requestChatBox.scrollHeight;
+}
+
+async function loadRequestMessages(requestId) {
+  if (!requestId) return;
+  try {
+    const data = await apiFetch(`/api/requests/${requestId}/messages`);
+    const messages = data.messages || [];
+    renderRequestMessages(messages);
+    if (messages.length > 0) {
+      const last = messages[messages.length - 1];
+      if (last?.Id && last.Id !== lastMessageId) {
+        if (lastMessageId && last.SenderUserId !== getMyUserId()) {
+          notifyUser("Új üzenet érkezett", last.Body);
+          showToast("Új üzenet érkezett");
+        }
+        lastMessageId = last.Id;
+      }
+    }
+  } catch (err) {
+    if (requestChatBox) {
+      requestChatBox.innerHTML = `<p class="notice">${err.message}</p>`;
+    }
+  }
+}
+
+async function sendRequestMessage() {
+  const body = requestChatInput?.value?.trim();
+  if (!body || !activeRequestId) return;
+  try {
+    await apiFetch(`/api/requests/${activeRequestId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body })
+    });
+    if (requestChatInput) {
+      requestChatInput.value = "";
+    }
+    await loadRequestMessages(activeRequestId);
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+function notifyUser(title, body) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    new Notification(title, { body });
+  }
+}
+
+function showToast(message) {
+  if (!statusToast) return;
+  statusToast.textContent = message;
+  statusToast.classList.add("show");
+  setTimeout(() => {
+    statusToast.classList.remove("show");
+  }, 4000);
+}
+
+async function updateRequestStatusUI(data) {
+  const jobStatus = data?.job?.Status || data?.job?.status;
+  const requestStatus = data?.status || "new";
+  const provider = data?.provider || null;
+  const statusForTimeline = jobStatus || requestStatus || "new";
+  const jobLabel = jobStatusLabel(jobStatus);
+  const requestLabel =
+    jobLabel ||
+    (requestStatus === "cancelled"
+      ? "Lemondva"
+      : requestStatus === "completed"
+        ? "Kész"
+        : null);
+  const providerName = provider?.name ? ` (${provider.name})` : "";
+
+  if (requestLabel) {
+    const text = `Autómentő státusz${providerName}: ${requestLabel}`;
+    mapMessage.textContent = text;
+    showRequestStatus(text);
+  } else {
+    const text = "Kérés elküldve. Várjuk az autómentő visszajelzését…";
+    mapMessage.textContent = text;
+    showRequestStatus(text);
+  }
+
+  if (requestStatusPill) {
+    requestStatusPill.textContent = requestLabel || "Várakozás";
+  }
+
+  updateTimeline(statusForTimeline);
+
+  const activeStatuses = new Set(["accepted", "enroute", "arrived"]);
+  const isActive = activeStatuses.has(jobStatus);
+  if (requestStatusCard) {
+    requestStatusCard.classList.toggle("is-active", isActive);
+  }
+
+  const providerLat = provider?.lat ?? provider?.LastLat ?? null;
+  const providerLng = provider?.lng ?? provider?.LastLng ?? null;
+  let distanceKm = null;
+  let etaMinutes = null;
+  if (
+    userLocation &&
+    Number.isFinite(providerLat) &&
+    Number.isFinite(providerLng)
+  ) {
+    distanceKm = haversineKm(
+      userLocation.lat,
+      userLocation.lng,
+      providerLat,
+      providerLng
+    );
+    etaMinutes = estimateEtaMinutes(distanceKm);
+    const route = await fetchRouteEta(
+      { lat: providerLat, lng: providerLng },
+      userLocation
+    );
+    if (route) {
+      distanceKm = route.distanceKm;
+      etaMinutes = route.durationMinutes;
+    }
+    if (requestStatusDistance) {
+      requestStatusDistance.textContent = formatDistance(distanceKm);
+    }
+    if (requestStatusEta) {
+      requestStatusEta.textContent = formatEta(etaMinutes);
+    }
+  } else {
+    if (requestStatusDistance) {
+      requestStatusDistance.textContent = "Nincs adat";
+    }
+    if (requestStatusEta) {
+      requestStatusEta.textContent = "Nincs adat";
+    }
+  }
+
+  if (requestStatusPrice) {
+    const estimate = estimatePrice(distanceKm, provider);
+    requestStatusPrice.textContent = formatCurrency(estimate);
+  }
+
+  if (requestStatusUpdated) {
+    const updatedAt = provider?.lastLocationAt || provider?.LastLocationAt;
+    requestStatusUpdated.textContent = updatedAt
+      ? `Pozíció frissítve: ${formatRelativeTime(updatedAt)}`
+      : "";
+  }
+
+  updateProviderMarker(providerLat, providerLng, provider?.name);
+  updateStatusActions(provider, isActive);
+
+  if (requestStatusControl) {
+    requestStatusControl.style.display = activeRequestId ? "flex" : "none";
+  }
+  if (requestCancelBtn) {
+    requestCancelBtn.style.display =
+      statusForTimeline === "cancelled" || statusForTimeline === "completed"
+        ? "none"
+        : "inline-flex";
+  }
+  if (requestNewBtn) {
+    requestNewBtn.style.display =
+      statusForTimeline === "cancelled" || statusForTimeline === "completed"
+        ? "inline-flex"
+        : "none";
+  }
+
+  const canChat = Boolean(provider?.id);
+  if (requestChat) {
+    requestChat.style.display = canChat ? "block" : "none";
+  }
+  if (!canChat && requestChatBox) {
+    requestChatBox.innerHTML = "";
+  }
+  if (canChat && activeRequestId) {
+    const now = Date.now();
+    if (now - lastMessageFetchAt > 7000) {
+      lastMessageFetchAt = now;
+      await loadRequestMessages(activeRequestId);
+    }
+  }
+
+  const jobId = data?.job?.Id || data?.job?.id;
+  activeJobId = jobId || null;
+  const ratingKey = jobId ? `resq_rating_submitted_${jobId}` : null;
+  const alreadyRated = ratingKey ? localStorage.getItem(ratingKey) === "1" : false;
+  if (requestRatingPanel) {
+    requestRatingPanel.style.display =
+      jobStatus === "completed" && jobId && !alreadyRated ? "block" : "none";
+  }
+
+  if (jobStatus && jobStatus !== lastRequestStatus) {
+    notifyUser("Mentés státusz frissült", jobStatusLabel(jobStatus) || jobStatus);
+    showToast(`Státusz: ${jobStatusLabel(jobStatus) || jobStatus}`);
+    lastRequestStatus = jobStatus;
+  }
+}
+
+function startRequestPolling(requestId) {
+  activeRequestId = requestId;
+  try {
+    localStorage.setItem("resq_active_request", String(requestId));
+  } catch {}
+  lastMessageFetchAt = 0;
+  lastMessageId = 0;
+  lastRouteFetchAt = 0;
+  lastRouteKey = null;
+  lastRouteData = null;
+  if (requestPollTimer) {
+    clearInterval(requestPollTimer);
+    requestPollTimer = null;
+  }
+
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
+
+  const tick = async () => {
+    if (!activeRequestId) return;
+    try {
+      const data = await apiFetch(`/api/requests/${activeRequestId}`);
+      const jobStatus = data.job?.Status || data.job?.status;
+      const requestStatus = data.status;
+      await updateRequestStatusUI(data);
+
+      if (jobStatus && jobStatus !== lastJobStatus) {
+        lastJobStatus = jobStatus;
+      }
+
+      if (
+        jobStatus === "completed" ||
+        jobStatus === "cancelled" ||
+        requestStatus === "completed" ||
+        requestStatus === "cancelled"
+      ) {
+        clearInterval(requestPollTimer);
+        requestPollTimer = null;
+        activeRequestId = null;
+        lastJobStatus = null;
+        lastRequestStatus = null;
+        try {
+          localStorage.removeItem("resq_active_request");
+        } catch {}
+        if (activeProviderMarker) {
+          activeProviderMarker.remove();
+          activeProviderMarker = null;
+        }
+      }
+    } catch (err) {
+      mapMessage.textContent = err.message || "Nem sikerült lekérni a kérés státuszát.";
+      showRequestStatus(mapMessage.textContent);
+    }
+  };
+
+  tick();
+  requestPollTimer = setInterval(tick, 5000);
+}
+
+requestStatusHideBtn?.addEventListener("click", () => {
+  if (requestStatusCard) {
+    requestStatusCard.style.display = "none";
+  }
+});
+
+providerSelectClose?.addEventListener("click", () => {
+  showProviderOverlay(null);
+});
+
+providerSelectRequest?.addEventListener("click", () => {
+  if (selectedProvider) {
+    requestHelp(selectedProvider);
+  }
+});
+
+mobileListToggle?.addEventListener("click", () => {
+  sidebarEl?.classList.toggle("is-open");
+});
+
+destinationCalcBtn?.addEventListener("click", async () => {
+  const query = destinationInput?.value?.trim();
+  if (!query) {
+    if (destinationStatus) {
+      destinationStatus.textContent = "Adj meg egy címet a számításhoz.";
+    }
+    return;
+  }
+  if (!userLocation) {
+    if (destinationStatus) {
+      destinationStatus.textContent = "Nincs helymeghatározás.";
+    }
+    return;
+  }
+  if (destinationStatus) {
+    destinationStatus.textContent = "Cím keresése...";
+  }
+  try {
+    const place = await geocodeAddress(query);
+    destinationCoords = { lat: place.lat, lng: place.lng };
+    if (destinationStatus) {
+      destinationStatus.textContent = `Cél: ${place.displayName}`;
+    }
+    const route = await fetchTripRoute(userLocation, destinationCoords);
+    if (destinationStatus && route) {
+      destinationStatus.textContent = `Cél: ${place.displayName} | ${Math.round(route.distanceKm * 10) / 10} km | ~${Math.round(route.durationMinutes)} perc`;
+    }
+    loadProviders();
+  } catch (err) {
+    if (destinationStatus) {
+      destinationStatus.textContent = err.message || "Nem sikerült számolni.";
+    }
+  }
+});
+
+destinationClearBtn?.addEventListener("click", () => {
+  destinationCoords = null;
+  tripDistanceKm = null;
+  tripDurationMinutes = null;
+  tripRouteKey = null;
+  tripRouteFetchAt = 0;
+  if (destinationInput) {
+    destinationInput.value = "";
+  }
+  if (destinationStatus) {
+    destinationStatus.textContent = "";
+  }
+  loadProviders();
+});
+
+requestCancelBtn?.addEventListener("click", async () => {
+  if (!activeRequestId) return;
+  if (!confirm("Biztosan lemondod a mentést?")) return;
+  try {
+    await apiFetch(`/api/requests/${activeRequestId}/cancel`, {
+      method: "PATCH"
+    });
+    mapMessage.textContent = "A mentést lemondtad.";
+    startRequestPolling(activeRequestId);
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+requestNewBtn?.addEventListener("click", () => {
+  activeRequestId = null;
+  lastJobStatus = null;
+  lastRequestStatus = null;
+  activeJobId = null;
+  try {
+    localStorage.removeItem("resq_active_request");
+  } catch {}
+  if (requestStatusCard) {
+    requestStatusCard.style.display = "none";
+  }
+  if (activeProviderMarker) {
+    activeProviderMarker.remove();
+    activeProviderMarker = null;
+  }
+  mapMessage.textContent = "Válassz új autómentőt a listából.";
+  loadProviders();
+});
+
+requestChatSend?.addEventListener("click", sendRequestMessage);
+requestChatInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    sendRequestMessage();
+  }
+});
+
+requestRatingSend?.addEventListener("click", async () => {
+  if (!activeJobId) return;
+  const stars = parseInt(requestRatingStars?.value || "0", 10);
+  const comment = requestRatingComment?.value?.trim() || "";
+  try {
+    await apiFetch(`/api/jobs/${activeJobId}/rating`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stars, comment })
+    });
+    localStorage.setItem(`resq_rating_submitted_${activeJobId}`, "1");
+    if (requestRatingPanel) {
+      requestRatingPanel.style.display = "none";
+    }
+    mapMessage.textContent = "Köszönjük az értékelést!";
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+function initMap(lat, lng) {
+  const maxBounds = [
+    [-85, -180],
+    [85, 180]
+  ];
+  map = L.map("map", { maxBounds, maxBoundsViscosity: 1.0 }).setView([lat, lng], 13);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    maxZoom: 19,
+    minZoom: 11,
+    noWrap: true,
+    worldCopyJump: true,
+    attribution: "&copy; OpenStreetMap &copy; CARTO"
+  }).addTo(map);
+
+  const userIcon = L.divIcon({
+    className: "user-marker",
+    html: "<div class=\"marker marker-user\"><span>👤</span></div>",
+    iconSize: [34, 34],
+    iconAnchor: [17, 17]
+  });
+  userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(map).bindPopup("Te itt vagy");
+  updateRadiusCircle();
+}
+
+function updateRadiusCircle() {
+  if (!map || !userLocation) return;
+  const radiusKm = parseFloat(radiusInput.value || "20");
+  if (!Number.isFinite(radiusKm)) return;
+  const radiusMeters = Math.max(100, radiusKm * 1000);
+  if (!radiusCircle) {
+    radiusCircle = L.circle([userLocation.lat, userLocation.lng], {
+      radius: radiusMeters,
+      color: "#0f766e",
+      weight: 1,
+      fillColor: "#0f766e",
+      fillOpacity: 0.08
+    }).addTo(map);
+  } else {
+    radiusCircle.setLatLng([userLocation.lat, userLocation.lng]);
+    radiusCircle.setRadius(radiusMeters);
+  }
+}
+
+function clearProviders() {
+  providerMarkers.forEach((marker) => marker.remove());
+  providerMarkers = [];
+  providersList.innerHTML = "";
+}
+
+function providerCard(provider) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "ride-card";
+  wrapper.dataset.id = String(provider.id);
+  const hasTrip = Number.isFinite(tripDistanceKm);
+  const usedDistance = hasTrip ? tripDistanceKm : provider.distanceKm;
+  const etaMinutes = estimateEtaMinutes(usedDistance);
+  const estimate = estimatePrice(usedDistance, provider);
+  wrapper.innerHTML = `
+    <div class="ride-icon">🚗</div>
+    <div class="ride-body">
+      <div class="ride-title">${provider.name}</div>
+      ${
+        hasTrip
+          ? `<div class="ride-sub">Hozzád: ${provider.distanceKm} km · Érkezés: ${formatEta(
+              estimateEtaMinutes(provider.distanceKm)
+            )}</div>
+             <div class="ride-sub">Fuvar: ${Math.round(tripDistanceKm * 10) / 10} km · Ár: ${formatCurrency(
+               estimate
+             )}</div>`
+          : `<div class="ride-sub">Add meg a célcímet a részletekhez</div>`
+      }
+    </div>
+    <div class="ride-price">${hasTrip ? formatCurrency(estimate) : ""}</div>
+  `;
+  if (selectedProvider && String(selectedProvider.id) === String(provider.id)) {
+    wrapper.classList.add("selected");
+  }
+  wrapper.addEventListener("click", (event) => {
+    if (event.target?.closest("button")) return;
+    showProviderOverlay(provider);
+  });
+  return wrapper;
+}
+
+async function loadProviders() {
+  if (!userLocation) {
+    return;
+  }
+  clearProviders();
+  const radiusKm = parseFloat(radiusInput.value || "20");
+  const capability = capabilitySelect.value;
+  try {
+    const providers = await apiFetch(
+      `/api/providers/nearby?lat=${userLocation.lat}&lng=${userLocation.lng}&radiusKm=${radiusKm}&capability=${encodeURIComponent(
+        capability
+      )}`
+    );
+
+    providers.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    if (providersHeader) {
+      providersHeader.textContent = `Választható mentők (${providers.length})`;
+    }
+    if (providersHint) {
+      providersHint.textContent = Number.isFinite(tripDistanceKm)
+        ? "Koppints a mentőre a részletekhez."
+        : "Add meg a célcímet, hogy lásd az árat és az érkezési időt.";
+    }
+
+    providers.forEach((provider) => {
+      const truckIcon = L.divIcon({
+        className: "truck-marker",
+        html: "<div class=\"marker marker-provider\"><span>🚗</span></div>",
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+      });
+      const marker = L.marker([provider.lat, provider.lng], { icon: truckIcon }).addTo(map);
+      marker.bindPopup(`${provider.name} - ${provider.baseFee} Ft`);
+      marker.on("click", () => {
+        showProviderOverlay(provider);
+      });
+      providerMarkers.push(marker);
+
+      const card = providerCard(provider);
+      providersList.appendChild(card);
+    });
+
+    if (providers.length === 0) {
+      providersList.innerHTML =
+        "<p class=\"notice\">Nincs megjeleníthető online autómentő a kiválasztott területen. (Lehet, hogy az autómentők nem osztották meg a pozíciójukat.)</p>";
+      if (providersHeader) {
+        providersHeader.textContent = "Mentők listája";
+      }
+    }
+  } catch (err) {
+    providersList.innerHTML = `<p class="notice">${err.message}</p>`;
+  }
+}
+
+async function requestHelp(provider) {
+  const role = getUserRole();
+  if (!role) {
+    mapMessage.textContent = "A mentést csak bejelentkezve tudod kérni.";
+    return;
+  }
+  if (role !== "User") {
+    mapMessage.textContent = "A mentést csak felhasználók tudják kérni.";
+    return;
+  }
+  if (!userLocation) {
+    return;
+  }
+  const notes = prompt("Mi a probléma? (opcionális)") || "";
+  try {
+    const created = await apiFetch("/api/requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pickupLat: userLocation.lat,
+        pickupLng: userLocation.lng,
+        problemType: "breakdown",
+        notes,
+        selectedProviderId: provider.id
+      })
+    });
+    mapMessage.textContent = "Kérés elküldve. Várjuk az autómentő visszajelzését…";
+    if (created?.id) {
+      startRequestPolling(created.id);
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+function locateUser() {
+  if (!navigator.geolocation) {
+    providersList.innerHTML = "<p class=\"notice\">A böngésző nem támogatja a helymeghatározást. Budapestet mutatjuk.</p>";
+    userLocation = fallbackLocation;
+    initMap(userLocation.lat, userLocation.lng);
+    loadProviders();
+    return;
+  }
+  const isSecureContext =
+    window.location.protocol === "https:" ||
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+  if (!isSecureContext) {
+    providersList.innerHTML =
+      "<p class=\"notice\">A pontos helymeghatározáshoz HTTPS (vagy localhost) szükséges. Budapestet mutatjuk.</p>";
+    userLocation = fallbackLocation;
+    initMap(userLocation.lat, userLocation.lng);
+    loadProviders();
+    if (gpsAccuracyEl) {
+      gpsAccuracyEl.textContent = "";
+    }
+    return;
+  }
+
+  const updateUserLocation = (lat, lng, accuracy) => {
+    userLocation = { lat, lng };
+    if (!map) {
+      initMap(lat, lng);
+    } else {
+      map.setView([lat, lng], 13);
+      if (userMarker) {
+        userMarker.setLatLng([lat, lng]);
+      }
+    }
+    if (gpsAccuracyEl && Number.isFinite(accuracy)) {
+      gpsAccuracyEl.textContent = `GPS pontosság: ~${Math.round(accuracy)} m`;
+    }
+    if (shouldRefreshProviders(lat, lng)) {
+      lastUserUpdateAt = Date.now();
+      lastUserCoords = { lat, lng };
+      updateRadiusCircle();
+      loadProviders();
+    }
+  };
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      updateUserLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+    },
+    () => {
+      providersList.innerHTML = "<p class=\"notice\">Nem sikerült helymeghatározni. Budapestet mutatjuk.</p>";
+      userLocation = fallbackLocation;
+      if (!map) {
+        initMap(userLocation.lat, userLocation.lng);
+      } else {
+        map.setView([userLocation.lat, userLocation.lng], 13);
+        if (userMarker) {
+          userMarker.setLatLng([userLocation.lat, userLocation.lng]);
+        }
+      }
+      if (gpsAccuracyEl) {
+        gpsAccuracyEl.textContent = "";
+      }
+      loadProviders();
+    },
+    { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+  );
+
+  if (userWatchId == null) {
+    userWatchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        updateUserLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
+  }
+}
+
+refreshBtn.addEventListener("click", loadProviders);
+radiusInput.addEventListener("input", () => {
+  updateRadiusCircle();
+});
+radiusInput.addEventListener("change", () => {
+  updateRadiusCircle();
+  loadProviders();
+});
+
+locateUser();
+
+try {
+  const existingId = Number.parseInt(localStorage.getItem("resq_active_request") || "", 10);
+  if (Number.isInteger(existingId) && existingId > 0 && getToken()) {
+    startRequestPolling(existingId);
+  }
+} catch {}

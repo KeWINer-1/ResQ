@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>resq - Autómentő mód</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="icon" href="src/favicon.ico" />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="index.html">
+        <img src="src/logo.png" alt="resq logo" />
+      </a>
+      <nav class="nav-links">
+        <a href="index.html">Kezdőlap</a>
+        <a href="map.html">Térkép</a>
+        <a href="support.html">Üzenet adminnak</a>
+        <a href="auth.html" data-auth-link>Belépés</a>
+      </nav>
+    </header>
+
+    <section class="map-layout">
+      <aside class="sidebar">
+        <h2>Autómentő dashboard</h2>
+        <p class="notice" id="provider-status">Belépés szükséges.</p>
+        <p class="notice" id="provider-location-message"></p>
+        <div class="top-actions">
+          <span class="status-pill" id="online-pill">Offline</span>
+          <button class="btn" id="toggle-online">Online/Offline</button>
+        </div>
+        <p class="notice">Online módban 20 másodpercenként frissítjük a pozíciódat.</p>
+
+        <div class="split" style="margin-top: 14px;">
+          <div>
+            <label>Kézi pozíció (lat)</label>
+            <input id="manual-lat" type="number" step="0.000001" placeholder="47.4979" />
+          </div>
+          <div>
+            <label>Kézi pozíció (lng)</label>
+            <input id="manual-lng" type="number" step="0.000001" placeholder="19.0402" />
+          </div>
+        </div>
+        <div class="cta-row" style="margin-top: 12px;">
+          <button class="btn secondary" id="save-location" type="button">Pozíció mentése</button>
+        </div>
+
+        <div class="card" style="margin-top: 16px;">
+          <h3>Bejövő kérések</h3>
+          <div id="request-list" class="notice">Nincs adat.</div>
+        </div>
+
+        <div class="card" style="margin-top: 16px;">
+          <h3>Üzenetek a felhasználóval</h3>
+          <p class="notice" id="provider-chat-hint">Válassz egy kérést az üzenetküldéshez.</p>
+          <div class="chat-box" id="provider-chat-box"></div>
+          <div class="chat-input-row">
+            <textarea id="provider-chat-input" rows="2" placeholder="Írj a felhasználónak..."></textarea>
+            <button class="btn" id="provider-chat-send" type="button">Küldés</button>
+          </div>
+        </div>
+      </aside>
+      <div id="provider-map" class="map"></div>
+    </section>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="js/common.js"></script>
+    <script src="js/provider.js"></script>
+  </body>
+</html>

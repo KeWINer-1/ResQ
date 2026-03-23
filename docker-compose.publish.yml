@@ -1,0 +1,11 @@
+services:
+  resq:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: resq-app
+    restart: unless-stopped
+    ports:
+      - "80:5000"
+    env_file:
+      - backend/.env.production
