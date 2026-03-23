@@ -1,0 +1,19 @@
+ResQ – importált dolgok a működéshez
+
+Backend (Node/Express) – backend/package.json
+- express: REST API (route-ok)
+- cors: böngészős kérések engedélyezése (CORS)
+- express-rate-limit: alap védelem túl sok kérés ellen
+- dotenv: .env betöltése (DB/JWT/PORT)
+- mssql (belsőleg: tedious): SQL Server kapcsolat/lekérdezések
+- bcrypt: jelszavak hashelése
+- jsonwebtoken: JWT token készítés/ellenőrzés
+
+Frontend (public) – külső importok
+- Leaflet (CDN): térkép és markerek (public/map.html, public/js/map.js)
+- OpenStreetMap tile layer: térképcsempék forrása (public/js/map.js)
+- Google Fonts (Kanit): betűtípus (public/*.html)
+
+Fejlesztői eszköz
+- npx serve: a public/ statikus kiszolgálása (README alapján)
+

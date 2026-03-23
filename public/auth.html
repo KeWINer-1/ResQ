@@ -1,0 +1,117 @@
+﻿<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>resq - Belépés</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" href="src/favicon.ico" />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="index.html">
+        <img src="src/logo.png" alt="resq logo" />
+      </a>
+      <nav class="nav-links">
+        <a href="index.html">Kezdőlap</a>
+        <a href="map.html">Térkép</a>
+        <a href="auth.html" data-auth-link>Belépés</a>
+      </nav>
+    </header>
+
+    <div class="form-card auth-card">
+      <section id="login-panel">
+        <h2>Belépés</h2>
+        <form id="login-form">
+          <label>Email</label>
+          <input type="email" name="email" required />
+          <label>Jelszó</label>
+          <input type="password" name="password" required />
+          <button class="btn" type="submit">Belépés</button>
+        </form>
+        <p class="notice auth-links-line">
+          Nincs még fiókod?
+          <a href="#" id="show-register">Itt tudsz regisztrálni.</a>
+        </p>
+        <p class="notice auth-links-line">
+          <a href="#" id="show-forgot">Elfelejtett jelszó?</a>
+        </p>
+        <p class="notice" id="login-message"></p>
+      </section>
+
+      <section id="register-panel" style="display: none;">
+        <h2>Regisztráció</h2>
+        <form id="register-form">
+        <label>Email</label>
+        <input type="email" name="email" required />
+        <label>Jelszó</label>
+        <input type="password" name="password" required />
+        <label>Szerepkör</label>
+        <select name="role" id="role-select" required>
+          <option value="User">Felhasználó</option>
+          <option value="Provider">Autómentő</option>
+        </select>
+
+        <div id="provider-fields" style="display: none;">
+          <label>Név / Cégnév</label>
+          <input type="text" name="name" />
+          <label>Telefonszám</label>
+          <input type="text" name="phone" />
+          <div class="split">
+            <div>
+              <label>Szolgaltatasi körzet (km)</label>
+              <input type="number" name="serviceRadiusKm" min="1" />
+            </div>
+            <div>
+              <label>Alapdíj</label>
+              <input type="number" name="baseFee" min="0" />
+            </div>
+          </div>
+          <label>Km díj</label>
+          <input type="number" name="perKmFee" min="0" />
+          <label>Képességek (vesszővel elválasztva)</label>
+          <input type="text" name="capabilities" placeholder="csorlo, treler, autopalya" />
+        </div>
+
+          <button class="btn" type="submit">Regisztráció</button>
+        </form>
+        <p class="notice auth-links-line">
+          Már van fiókod?
+          <a href="#" id="show-login-from-register">Itt tudsz belépni.</a>
+        </p>
+        <p class="notice" id="register-message"></p>
+      </section>
+
+      <section id="forgot-panel" style="display: none;">
+        <h2>Elfelejtett jelszó</h2>
+        <form id="forgot-form">
+          <label>Email</label>
+          <input type="email" name="email" required />
+          <button class="btn" type="submit">Jelszó visszaállítás indítása</button>
+        </form>
+        <p class="notice auth-links-line">
+          <a href="#" id="show-login-from-forgot">Vissza a belépéshez</a>
+        </p>
+        <p class="notice" id="forgot-message"></p>
+
+        <form id="reset-form" style="display: none;">
+          <label>Reset token</label>
+          <input type="text" name="token" required />
+          <label>Új jelszó</label>
+          <input type="password" name="newPassword" required minlength="6" />
+          <button class="btn" type="submit">Új jelszó mentése</button>
+        </form>
+        <p class="notice" id="reset-message"></p>
+      </section>
+    </div>
+
+    <script src="js/common.js"></script>
+    <script src="js/auth.js"></script>
+  </body>
+</html>

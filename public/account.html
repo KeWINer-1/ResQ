@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>resq - Fiókom</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" href="src/favicon.ico" />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="index.html">
+        <img src="src/logo.png" alt="resq logo" />
+      </a>
+      <nav class="nav-links">
+        <a href="index.html">Kezdőlap</a>
+        <a href="map.html">Térkép</a>
+        <a href="provider.html">Autómentő mód</a>
+        <a href="support.html">Üzenet adminnak</a>
+        <a href="auth.html" data-auth-link>Belépés</a>
+      </nav>
+    </header>
+
+    <section class="section">
+      <div class="form-card">
+        <h2>Fiókom</h2>
+        <p class="notice" id="account-message"></p>
+
+        <div id="account-details" style="display: none;">
+          <label>Név</label>
+          <input id="account-name" type="text" disabled />
+
+          <label>Email</label>
+          <input id="account-email" type="text" disabled />
+
+          <label>Telefonszám</label>
+          <input id="account-phone" type="text" disabled />
+
+          <label>Fiók típusa</label>
+          <input id="account-role" type="text" disabled />
+
+          <div class="cta-row" style="margin-top: 18px;">
+            <button class="btn secondary" id="logout-btn" type="button">Kijelentkezés</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script src="js/common.js"></script>
+    <script src="js/account.js"></script>
+  </body>
+</html>
