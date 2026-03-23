@@ -33,10 +33,56 @@ let requestMarkers = new Map();
 let selectedRequestId = null;
 const fallbackLocation = { lat: 47.4979, lng: 19.0402 };
 let requestCache = new Map();
+let manualLocationOverride = false;
+const manualProviderLocationStorageKey = "resq_manual_provider_location";
+const activeProviderRequestStorageKey = "resq_provider_active_request";
+let requestsPollTimer = null;
 
 function setLocationMessage(message) {
   if (!locationMessageEl) return;
   locationMessageEl.textContent = message || "";
+}
+
+function saveManualProviderLocation(lat, lng) {
+  try {
+    localStorage.setItem(
+      manualProviderLocationStorageKey,
+      JSON.stringify({ lat, lng })
+    );
+  } catch {}
+}
+
+function loadManualProviderLocation() {
+  try {
+    const raw = localStorage.getItem(manualProviderLocationStorageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Number.isFinite(parsed?.lat) || !Number.isFinite(parsed?.lng)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveActiveProviderRequest(requestId) {
+  try {
+    if (requestId) {
+      localStorage.setItem(activeProviderRequestStorageKey, String(requestId));
+    } else {
+      localStorage.removeItem(activeProviderRequestStorageKey);
+    }
+  } catch {}
+}
+
+function loadActiveProviderRequest() {
+  try {
+    const raw = localStorage.getItem(activeProviderRequestStorageKey);
+    if (!raw) return null;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isInteger(parsed) && parsed > 0 ? String(parsed) : null;
+  } catch {
+    return null;
+  }
 }
 
 function initMap(lat, lng) {
@@ -93,6 +139,7 @@ function clearRequestMarkers() {
 
 function selectRequest(requestId) {
   selectedRequestId = requestId;
+  saveActiveProviderRequest(requestId);
   activeChatRequestId = requestId;
   const request = requestCache.get(String(requestId));
   if (providerChatHint) {
@@ -191,6 +238,16 @@ async function loadProfile() {
     const profile = await apiFetch("/api/providers/me");
     isOnline = profile.IsOnline === true || profile.IsOnline === 1;
     updateStatus();
+    const savedManualLocation = loadManualProviderLocation();
+    if (savedManualLocation) {
+      manualLocationOverride = true;
+      if (manualLatEl) manualLatEl.value = String(savedManualLocation.lat);
+      if (manualLngEl) manualLngEl.value = String(savedManualLocation.lng);
+      updateProviderMarker(savedManualLocation.lat, savedManualLocation.lng);
+      setLocationMessage("Kezileg mentett pozicio aktiv.");
+      stopLocationUpdates();
+      return;
+    }
     const lat = Number(profile.LastLat);
     const lng = Number(profile.LastLng);
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
@@ -236,6 +293,10 @@ async function toggleOnline() {
 }
 
 function startLocationUpdates() {
+  if (manualLocationOverride) {
+    setLocationMessage("Kezileg mentett pozicio aktiv.");
+    return;
+  }
   if (locationWatchId) {
     return;
   }
@@ -288,9 +349,17 @@ function stopLocationUpdates() {
   }
 }
 
+function startRequestsPolling() {
+  if (requestsPollTimer) return;
+  loadRequests();
+  requestsPollTimer = setInterval(loadRequests, 5000);
+}
+
 async function loadRequests() {
   try {
     const data = await apiFetch("/api/requests/provider");
+    const terminalStatuses = new Set(["completed", "cancelled"]);
+    const visibleRequests = data.filter((req) => !terminalStatuses.has(req.JobStatus));
     if (!map) {
       initMap(fallbackLocation.lat, fallbackLocation.lng);
     }
@@ -299,9 +368,15 @@ async function loadRequests() {
     data.forEach((req) => {
       requestCache.set(String(req.Id), req);
     });
-    if (data.length === 0) {
+    if (visibleRequests.length === 0) {
       requestList.textContent = "Nincs új kérés.";
       selectedRequestId = null;
+      saveActiveProviderRequest(null);
+      activeChatRequestId = null;
+      stopChatPolling();
+      if (providerChatBox) {
+        providerChatBox.innerHTML = "";
+      }
       if (providerChatHint) {
         providerChatHint.textContent = "Válassz egy kérést az üzenetküldéshez.";
       }
@@ -309,13 +384,28 @@ async function loadRequests() {
     }
 
     const activeStatuses = new Set(["accepted", "enroute", "arrived"]);
+    const savedRequestId = loadActiveProviderRequest();
+    const savedRequest =
+      (savedRequestId &&
+        visibleRequests.find((req) => String(req.Id) === String(savedRequestId))) ||
+      null;
+    const preferredRequest =
+      savedRequest && !terminalStatuses.has(savedRequest.JobStatus) ? savedRequest : null;
+    const openRequest =
+      visibleRequests.find(
+        (req) => !terminalStatuses.has(req.JobStatus) && !activeStatuses.has(req.JobStatus)
+      ) ||
+      null;
     const activeRequest =
-      data.find((req) => activeStatuses.has(req.JobStatus)) ||
-      data.slice().sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt))[0];
+      preferredRequest ||
+      visibleRequests.find((req) => activeStatuses.has(req.JobStatus)) ||
+      openRequest ||
+      visibleRequests.slice().sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt))[0];
 
     if (!activeRequest) {
       requestList.textContent = "Nincs új kérés.";
       selectedRequestId = null;
+      saveActiveProviderRequest(null);
       return;
     }
 
@@ -323,6 +413,11 @@ async function loadRequests() {
     const jobStatus = req.JobStatus || null;
     const isDone = jobStatus === "completed";
     const isCancelled = jobStatus === "cancelled";
+    if (isDone || isCancelled) {
+      saveActiveProviderRequest(null);
+    } else {
+      saveActiveProviderRequest(req.Id);
+    }
     const job = jobStatus ? ` | ${jobStatus}` : "";
     const isSelected = String(req.Id) === String(selectedRequestId);
 
@@ -370,6 +465,11 @@ async function loadRequests() {
           return;
         }
         try {
+          if (action === "completed" || action === "cancelled") {
+            saveActiveProviderRequest(null);
+          } else {
+            saveActiveProviderRequest(requestId);
+          }
           await apiFetch(`/api/requests/${requestId}/status`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -410,8 +510,9 @@ toggleBtn.addEventListener("click", toggleOnline);
 if (!getToken()) {
   statusEl.textContent = "Belépés szükséges.";
 } else {
+  initMap(fallbackLocation.lat, fallbackLocation.lng);
   loadProfile();
-  loadRequests();
+  startRequestsPolling();
 }
 
 saveLocationBtn?.addEventListener("click", async () => {
@@ -422,6 +523,9 @@ saveLocationBtn?.addEventListener("click", async () => {
     return;
   }
   try {
+    manualLocationOverride = true;
+    saveManualProviderLocation(lat, lng);
+    stopLocationUpdates();
     await sendLocation(lat, lng);
     updateProviderMarker(lat, lng);
     setLocationMessage("Pozíció mentve.");

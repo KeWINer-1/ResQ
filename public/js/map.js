@@ -4,6 +4,12 @@ const capabilitySelect = document.getElementById("capability-select");
 const refreshBtn = document.getElementById("refresh-btn");
 const mapMessage = document.getElementById("map-message");
 const gpsAccuracyEl = document.getElementById("gps-accuracy");
+const userPositionCard = document.getElementById("user-position-card");
+const manualLocationInput = document.getElementById("manual-location-input");
+const manualLocationStatus = document.getElementById("manual-location-status");
+const applyManualLocationBtn = document.getElementById("apply-manual-location-btn");
+const useGpsBtn = document.getElementById("use-gps-btn");
+const destinationCard = document.getElementById("destination-card");
 const destinationInput = document.getElementById("destination-input");
 const destinationCalcBtn = document.getElementById("destination-calc-btn");
 const destinationClearBtn = document.getElementById("destination-clear-btn");
@@ -45,6 +51,7 @@ const providerSelectClose = document.getElementById("provider-select-close");
 const mobileListToggle = document.getElementById("mobile-list-toggle");
 const sidebarEl = document.querySelector(".sidebar");
 const statusToast = document.getElementById("status-toast");
+const providersFilters = document.getElementById("providers-filters");
 const providersHeader = document.getElementById("providers-header");
 const providersHint = document.getElementById("providers-hint");
 
@@ -60,6 +67,9 @@ let map;
 let userMarker;
 let providerMarkers = [];
 let activeProviderMarker = null;
+let activeRouteLine = null;
+let activeTripRouteLine = null;
+let destinationMarker = null;
 let radiusCircle = null;
 let userLocation = null;
 const fallbackLocation = { lat: 47.4979, lng: 19.0402 };
@@ -71,10 +81,14 @@ let lastRouteFetchAt = 0;
 let lastRouteKey = null;
 let lastRouteData = null;
 let routeFetchInFlight = false;
+let routeGeometryKey = null;
+let routeGeometryFetchedAt = 0;
+let routeGeometryData = null;
 let lastMessageFetchAt = 0;
 let lastMessageId = 0;
 let activeJobId = null;
 let userWatchId = null;
+let manualLocationOverride = false;
 let lastUserUpdateAt = 0;
 let lastUserCoords = null;
 let selectedProvider = null;
@@ -83,6 +97,9 @@ let tripDistanceKm = null;
 let tripDurationMinutes = null;
 let tripRouteKey = null;
 let tripRouteFetchAt = 0;
+let rideFocusActive = false;
+const manualLocationStorageKey = "resq_manual_user_location";
+const destinationStorageKey = "resq_destination_location";
 
 function showRequestStatus(message) {
   if (requestStatusCard && requestStatusText) {
@@ -140,6 +157,114 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function parseCoordinatePair(value) {
+  const normalized = String(value || "").trim().replace(/\s+/g, " ");
+  const match = normalized.match(
+    /^\s*(-?\d+(?:\.\d+)?)\s*[,; ]\s*(-?\d+(?:\.\d+)?)\s*$/
+  );
+  if (!match) return null;
+  const lat = Number.parseFloat(match[1]);
+  const lng = Number.parseFloat(match[2]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
+
+function parseGoogleMapsCoordinate(value) {
+  const normalized = String(value || "").trim();
+  const atMatch = normalized.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  if (atMatch) {
+    const lat = Number.parseFloat(atMatch[1]);
+    const lng = Number.parseFloat(atMatch[2]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { lat, lng };
+    }
+  }
+
+  const urlPairMatch = normalized.match(/[?&](?:q|query|ll)=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/i);
+  if (urlPairMatch) {
+    const lat = Number.parseFloat(urlPairMatch[1]);
+    const lng = Number.parseFloat(urlPairMatch[2]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { lat, lng };
+    }
+  }
+
+  return null;
+}
+
+function dmsToDecimal(degrees, minutes, seconds, hemisphere) {
+  const deg = Number.parseFloat(degrees);
+  const min = Number.parseFloat(minutes || "0");
+  const sec = Number.parseFloat(seconds || "0");
+  if (![deg, min, sec].every(Number.isFinite)) return null;
+  let value = Math.abs(deg) + min / 60 + sec / 3600;
+  const dir = String(hemisphere || "").toUpperCase();
+  if (dir === "S" || dir === "W") value *= -1;
+  return value;
+}
+
+function parseDmsCoordinatePair(value) {
+  const normalized = String(value || "").trim().replace(/\s+/g, " ");
+  const match = normalized.match(
+    /(\d{1,3})°\s*(\d{1,2})['′]\s*(\d{1,2}(?:\.\d+)?)["″]?\s*([NS])\s+(\d{1,3})°\s*(\d{1,2})['′]\s*(\d{1,2}(?:\.\d+)?)["″]?\s*([EW])/i
+  );
+  if (!match) return null;
+  const lat = dmsToDecimal(match[1], match[2], match[3], match[4]);
+  const lng = dmsToDecimal(match[5], match[6], match[7], match[8]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
+
+function saveManualLocation(value) {
+  try {
+    localStorage.setItem(manualLocationStorageKey, JSON.stringify(value));
+  } catch {}
+}
+
+function clearManualLocation() {
+  try {
+    localStorage.removeItem(manualLocationStorageKey);
+  } catch {}
+}
+
+function loadManualLocation() {
+  try {
+    const raw = localStorage.getItem(manualLocationStorageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Number.isFinite(parsed?.lat) || !Number.isFinite(parsed?.lng)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveDestinationLocation(value) {
+  try {
+    localStorage.setItem(destinationStorageKey, JSON.stringify(value));
+  } catch {}
+}
+
+function clearDestinationLocation() {
+  try {
+    localStorage.removeItem(destinationStorageKey);
+  } catch {}
+}
+
+function loadDestinationLocation() {
+  try {
+    const raw = localStorage.getItem(destinationStorageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Number.isFinite(parsed?.lat) || !Number.isFinite(parsed?.lng)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 function shouldRefreshProviders(lat, lng) {
   const now = Date.now();
   if (!lastUserCoords) return true;
@@ -165,6 +290,34 @@ function formatEta(minutes) {
   const mins = Math.round(minutes % 60);
   if (mins === 0) return `${hours} óra`;
   return `${hours} óra ${mins} perc`;
+}
+
+function applyUserLocation(lat, lng, accuracy, zoom = 13) {
+  userLocation = { lat, lng };
+  if (!map) {
+    initMap(lat, lng);
+  } else {
+    map.setView([lat, lng], zoom);
+    if (userMarker) {
+      userMarker.setLatLng([lat, lng]);
+    }
+  }
+  if (gpsAccuracyEl) {
+    gpsAccuracyEl.textContent = Number.isFinite(accuracy)
+      ? "GPS alapjan szamolunk."
+      : manualLocationOverride
+        ? "Kezzel megadott cimmel szamolunk."
+        : "";
+  }
+  if (destinationCoords) {
+    drawTripRouteLine(userLocation, destinationCoords);
+  }
+  if (shouldRefreshProviders(lat, lng)) {
+    lastUserUpdateAt = Date.now();
+    lastUserCoords = { lat, lng };
+    updateRadiusCircle();
+    loadProviders();
+  }
 }
 
 function estimateEtaMinutes(distanceKm) {
@@ -219,6 +372,42 @@ async function fetchTripRoute(from, to) {
   tripRouteKey = key;
   tripRouteFetchAt = now;
   return { distanceKm: tripDistanceKm, durationMinutes: tripDurationMinutes };
+}
+
+async function applyManualLocation() {
+  const query = manualLocationInput?.value?.trim();
+  if (!query) {
+    if (manualLocationStatus) {
+      manualLocationStatus.textContent = "Adj meg egy cimet.";
+    }
+    return;
+  }
+  if (manualLocationStatus) {
+    manualLocationStatus.textContent = "Kereses...";
+  }
+  try {
+    const coordinateMatch = parseCoordinatePair(query);
+    const googleMapsMatch = parseGoogleMapsCoordinate(query);
+    const dmsCoordinateMatch = parseDmsCoordinatePair(query);
+    const exactCoordinate = coordinateMatch || googleMapsMatch || dmsCoordinateMatch;
+    const place = exactCoordinate
+      ? { ...exactCoordinate, displayName: query }
+      : await geocodeAddress(query);
+    manualLocationOverride = true;
+    applyUserLocation(place.lat, place.lng, null, exactCoordinate ? 18 : 16);
+    saveManualLocation({
+      query,
+      lat: place.lat,
+      lng: place.lng
+    });
+    if (manualLocationStatus) {
+      manualLocationStatus.textContent = "Cim beallitva.";
+    }
+  } catch (err) {
+    if (manualLocationStatus) {
+      manualLocationStatus.textContent = err.message || "Nem sikerult a helymeghatarozas.";
+    }
+  }
 }
 
 function updateTimeline(status) {
@@ -301,6 +490,128 @@ async function fetchRouteEta(from, to) {
     return null;
   } finally {
     routeFetchInFlight = false;
+  }
+}
+
+async function fetchRouteGeometry(from, to) {
+  const key = `${from.lat.toFixed(5)},${from.lng.toFixed(5)}|${to.lat.toFixed(5)},${to.lng.toFixed(5)}`;
+  const now = Date.now();
+  if (routeGeometryKey === key && routeGeometryData && now - routeGeometryFetchedAt < 20000) {
+    return routeGeometryData;
+  }
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Route geometry failed");
+    const data = await response.json();
+    const route = data?.routes?.[0];
+    const coordinates = route?.geometry?.coordinates;
+    if (!Array.isArray(coordinates) || coordinates.length === 0) return null;
+    routeGeometryKey = key;
+    routeGeometryFetchedAt = now;
+    routeGeometryData = coordinates.map(([lng, lat]) => [lat, lng]);
+    return routeGeometryData;
+  } catch {
+    return null;
+  }
+}
+
+function clearActiveRouteLine() {
+  if (activeRouteLine) {
+    activeRouteLine.remove();
+    activeRouteLine = null;
+  }
+}
+
+function clearTripRouteLine() {
+  if (activeTripRouteLine) {
+    activeTripRouteLine.remove();
+    activeTripRouteLine = null;
+  }
+}
+
+function clearDestinationMarker() {
+  if (destinationMarker) {
+    destinationMarker.remove();
+    destinationMarker = null;
+  }
+}
+
+function updateDestinationMarker(lat, lng) {
+  if (!map || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+  const flagIcon = L.divIcon({
+    className: "destination-marker",
+    html: "<div class=\"marker marker-destination\"><span>🏁</span></div>",
+    iconSize: [34, 34],
+    iconAnchor: [17, 17]
+  });
+  if (!destinationMarker) {
+    destinationMarker = L.marker([lat, lng], { icon: flagIcon }).addTo(map);
+  } else {
+    destinationMarker.setLatLng([lat, lng]);
+  }
+  destinationMarker.bindPopup("Celpont");
+}
+
+async function drawTripRouteLine(from, to, fit = false) {
+  if (!map || !from || !to) return;
+  const routeGeometry = await fetchRouteGeometry(from, to);
+  if (!routeGeometry) return;
+  if (!activeTripRouteLine) {
+    activeTripRouteLine = L.polyline(routeGeometry, {
+      color: "#3b82f6",
+      weight: 5,
+      opacity: 0.95
+    }).addTo(map);
+  } else {
+    activeTripRouteLine.setLatLngs(routeGeometry);
+  }
+  if (fit) {
+    map.fitBounds(activeTripRouteLine.getBounds(), { padding: [40, 40] });
+  }
+}
+
+function fitActiveRoutes() {
+  if (!map) return;
+  const bounds = [];
+  if (activeRouteLine) {
+    bounds.push(activeRouteLine.getBounds());
+  }
+  if (activeTripRouteLine) {
+    bounds.push(activeTripRouteLine.getBounds());
+  }
+  if (bounds.length === 0) return;
+  const combined = bounds[0];
+  for (let i = 1; i < bounds.length; i += 1) {
+    combined.extend(bounds[i]);
+  }
+  map.fitBounds(combined, { padding: [40, 40] });
+}
+
+function setRideFocusMode(isFocused) {
+  if (userPositionCard) {
+    userPositionCard.style.display = isFocused ? "none" : "block";
+  }
+  if (destinationCard) {
+    destinationCard.style.display = isFocused ? "none" : "block";
+  }
+  if (providersFilters) {
+    providersFilters.style.display = isFocused ? "none" : "flex";
+  }
+  if (providersHeader) {
+    providersHeader.style.display = isFocused ? "none" : "block";
+  }
+  if (providersHint) {
+    providersHint.style.display = isFocused ? "none" : "block";
+  }
+  if (providersList) {
+    providersList.style.display = isFocused ? "none" : "block";
+  }
+  if (mobileListToggle) {
+    mobileListToggle.style.display = isFocused ? "none" : "";
+  }
+  if (providerSelectCard && isFocused) {
+    providerSelectCard.style.display = "none";
   }
 }
 
@@ -482,11 +793,11 @@ async function updateRequestStatusUI(data) {
   const providerName = provider?.name ? ` (${provider.name})` : "";
 
   if (requestLabel) {
-    const text = `Autómentő státusz${providerName}: ${requestLabel}`;
+    const text = providerName ? `${providerName} - ${requestLabel}` : requestLabel;
     mapMessage.textContent = text;
     showRequestStatus(text);
   } else {
-    const text = "Kérés elküldve. Várjuk az autómentő visszajelzését…";
+    const text = "Keres elkuldve.";
     mapMessage.textContent = text;
     showRequestStatus(text);
   }
@@ -499,8 +810,17 @@ async function updateRequestStatusUI(data) {
 
   const activeStatuses = new Set(["accepted", "enroute", "arrived"]);
   const isActive = activeStatuses.has(jobStatus);
+  const wasRideFocusActive = rideFocusActive;
+  rideFocusActive = isActive;
+  setRideFocusMode(isActive);
   if (requestStatusCard) {
     requestStatusCard.classList.toggle("is-active", isActive);
+  }
+  if (!isActive) {
+    clearActiveRouteLine();
+    if (wasRideFocusActive) {
+      loadProviders();
+    }
   }
 
   const providerLat = provider?.lat ?? provider?.LastLat ?? null;
@@ -555,6 +875,29 @@ async function updateRequestStatusUI(data) {
   }
 
   updateProviderMarker(providerLat, providerLng, provider?.name);
+  if (isActive) {
+    clearProviders();
+    if (userLocation && Number.isFinite(providerLat) && Number.isFinite(providerLng)) {
+      const routeGeometry = await fetchRouteGeometry(
+        { lat: providerLat, lng: providerLng },
+        userLocation
+      );
+      if (routeGeometry && map) {
+        if (!activeRouteLine) {
+          activeRouteLine = L.polyline(routeGeometry, {
+            color: "#ff8a1f",
+            weight: 5,
+            opacity: 0.9
+          }).addTo(map);
+        } else {
+          activeRouteLine.setLatLngs(routeGeometry);
+        }
+        if (!wasRideFocusActive) {
+          fitActiveRoutes();
+        }
+      }
+    }
+  }
   updateStatusActions(provider, isActive);
 
   if (requestStatusControl) {
@@ -676,7 +1019,9 @@ providerSelectClose?.addEventListener("click", () => {
 
 providerSelectRequest?.addEventListener("click", () => {
   if (selectedProvider) {
-    requestHelp(selectedProvider);
+    requestHelpSafe(selectedProvider);
+  } else {
+    mapMessage.textContent = "Valassz egy automentot.";
   }
 });
 
@@ -704,10 +1049,18 @@ destinationCalcBtn?.addEventListener("click", async () => {
   try {
     const place = await geocodeAddress(query);
     destinationCoords = { lat: place.lat, lng: place.lng };
+    updateDestinationMarker(place.lat, place.lng);
+    saveDestinationLocation({
+      query,
+      lat: place.lat,
+      lng: place.lng,
+      displayName: place.displayName
+    });
     if (destinationStatus) {
       destinationStatus.textContent = `Cél: ${place.displayName}`;
     }
     const route = await fetchTripRoute(userLocation, destinationCoords);
+    await drawTripRouteLine(userLocation, destinationCoords, true);
     if (destinationStatus && route) {
       destinationStatus.textContent = `Cél: ${place.displayName} | ${Math.round(route.distanceKm * 10) / 10} km | ~${Math.round(route.durationMinutes)} perc`;
     }
@@ -725,6 +1078,9 @@ destinationClearBtn?.addEventListener("click", () => {
   tripDurationMinutes = null;
   tripRouteKey = null;
   tripRouteFetchAt = 0;
+  clearTripRouteLine();
+  clearDestinationMarker();
+  clearDestinationLocation();
   if (destinationInput) {
     destinationInput.value = "";
   }
@@ -753,6 +1109,11 @@ requestNewBtn?.addEventListener("click", () => {
   lastJobStatus = null;
   lastRequestStatus = null;
   activeJobId = null;
+  rideFocusActive = false;
+  setRideFocusMode(false);
+  clearActiveRouteLine();
+  clearTripRouteLine();
+  clearDestinationMarker();
   try {
     localStorage.removeItem("resq_active_request");
   } catch {}
@@ -883,6 +1244,9 @@ async function loadProviders() {
   if (!userLocation) {
     return;
   }
+  if (rideFocusActive) {
+    return;
+  }
   clearProviders();
   const radiusKm = parseFloat(radiusInput.value || "20");
   const capability = capabilitySelect.value;
@@ -935,6 +1299,7 @@ async function loadProviders() {
 }
 
 async function requestHelp(provider) {
+  const providerId = Number(provider?.id);
   const role = getUserRole();
   if (!role) {
     mapMessage.textContent = "A mentést csak bejelentkezve tudod kérni.";
@@ -969,12 +1334,67 @@ async function requestHelp(provider) {
   }
 }
 
+async function requestHelpSafe(provider) {
+  const providerId = Number(provider?.id);
+  const role = getUserRole();
+  if (!role) {
+    mapMessage.textContent = "A mentes keresehez jelentkezz be.";
+    return;
+  }
+  if (role !== "User") {
+    mapMessage.textContent = "Ezt csak felhasznalok kerhetik.";
+    return;
+  }
+  if (!Number.isInteger(providerId) || providerId <= 0) {
+    mapMessage.textContent = "Valassz egy automentot.";
+    return;
+  }
+  if (!userLocation) {
+    mapMessage.textContent = "Add meg, honnan induljunk.";
+    return;
+  }
+
+  const notes = prompt("Mi a problema? (opcionalis)") || "";
+
+  try {
+    if (providerSelectRequest) {
+      providerSelectRequest.disabled = true;
+      providerSelectRequest.textContent = "Kuldes...";
+    }
+
+    mapMessage.textContent = "Keres kuldese...";
+
+    const created = await apiFetch("/api/requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pickupLat: userLocation.lat,
+        pickupLng: userLocation.lng,
+        pickupAddress: manualLocationInput?.value?.trim() || null,
+        problemType: "breakdown",
+        notes,
+        selectedProviderId: providerId
+      })
+    });
+
+    mapMessage.textContent = "Keres elkuldve. Varjuk az automentot.";
+    if (created?.id) {
+      startRequestPolling(created.id);
+    }
+  } catch (err) {
+    mapMessage.textContent = err.message || "Nem sikerult elkuldeni a kerest.";
+  } finally {
+    if (providerSelectRequest) {
+      providerSelectRequest.disabled = false;
+      providerSelectRequest.textContent = "Mentes kerese";
+    }
+  }
+}
+
 function locateUser() {
   if (!navigator.geolocation) {
     providersList.innerHTML = "<p class=\"notice\">A böngésző nem támogatja a helymeghatározást. Budapestet mutatjuk.</p>";
-    userLocation = fallbackLocation;
-    initMap(userLocation.lat, userLocation.lng);
-    loadProviders();
+    applyUserLocation(fallbackLocation.lat, fallbackLocation.lng, null);
     return;
   }
   const isSecureContext =
@@ -984,34 +1404,13 @@ function locateUser() {
   if (!isSecureContext) {
     providersList.innerHTML =
       "<p class=\"notice\">A pontos helymeghatározáshoz HTTPS (vagy localhost) szükséges. Budapestet mutatjuk.</p>";
-    userLocation = fallbackLocation;
-    initMap(userLocation.lat, userLocation.lng);
-    loadProviders();
-    if (gpsAccuracyEl) {
-      gpsAccuracyEl.textContent = "";
-    }
+    applyUserLocation(fallbackLocation.lat, fallbackLocation.lng, null);
     return;
   }
 
   const updateUserLocation = (lat, lng, accuracy) => {
-    userLocation = { lat, lng };
-    if (!map) {
-      initMap(lat, lng);
-    } else {
-      map.setView([lat, lng], 13);
-      if (userMarker) {
-        userMarker.setLatLng([lat, lng]);
-      }
-    }
-    if (gpsAccuracyEl && Number.isFinite(accuracy)) {
-      gpsAccuracyEl.textContent = `GPS pontosság: ~${Math.round(accuracy)} m`;
-    }
-    if (shouldRefreshProviders(lat, lng)) {
-      lastUserUpdateAt = Date.now();
-      lastUserCoords = { lat, lng };
-      updateRadiusCircle();
-      loadProviders();
-    }
+    if (manualLocationOverride) return;
+    applyUserLocation(lat, lng, accuracy);
   };
 
   navigator.geolocation.getCurrentPosition(
@@ -1020,19 +1419,7 @@ function locateUser() {
     },
     () => {
       providersList.innerHTML = "<p class=\"notice\">Nem sikerült helymeghatározni. Budapestet mutatjuk.</p>";
-      userLocation = fallbackLocation;
-      if (!map) {
-        initMap(userLocation.lat, userLocation.lng);
-      } else {
-        map.setView([userLocation.lat, userLocation.lng], 13);
-        if (userMarker) {
-          userMarker.setLatLng([userLocation.lat, userLocation.lng]);
-        }
-      }
-      if (gpsAccuracyEl) {
-        gpsAccuracyEl.textContent = "";
-      }
-      loadProviders();
+      applyUserLocation(fallbackLocation.lat, fallbackLocation.lng, null);
     },
     { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
   );
@@ -1049,6 +1436,21 @@ function locateUser() {
 }
 
 refreshBtn.addEventListener("click", loadProviders);
+applyManualLocationBtn?.addEventListener("click", applyManualLocation);
+manualLocationInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    applyManualLocation();
+  }
+});
+useGpsBtn?.addEventListener("click", () => {
+  manualLocationOverride = false;
+  clearManualLocation();
+  if (manualLocationStatus) {
+    manualLocationStatus.textContent = "GPS aktiv.";
+  }
+  locateUser();
+});
 radiusInput.addEventListener("input", () => {
   updateRadiusCircle();
 });
@@ -1057,7 +1459,40 @@ radiusInput.addEventListener("change", () => {
   loadProviders();
 });
 
-locateUser();
+const savedManualLocation = loadManualLocation();
+if (savedManualLocation) {
+  manualLocationOverride = true;
+  if (manualLocationInput) {
+    manualLocationInput.value = savedManualLocation.query || `${savedManualLocation.lat}, ${savedManualLocation.lng}`;
+  }
+  if (manualLocationStatus) {
+    manualLocationStatus.textContent = "Mentett cim betoltve.";
+  }
+  applyUserLocation(savedManualLocation.lat, savedManualLocation.lng, null);
+} else {
+  locateUser();
+}
+
+const savedDestinationLocation = loadDestinationLocation();
+if (savedDestinationLocation) {
+  destinationCoords = {
+    lat: savedDestinationLocation.lat,
+    lng: savedDestinationLocation.lng
+  };
+  if (destinationInput) {
+    destinationInput.value =
+      savedDestinationLocation.query || `${savedDestinationLocation.lat}, ${savedDestinationLocation.lng}`;
+  }
+  updateDestinationMarker(savedDestinationLocation.lat, savedDestinationLocation.lng);
+  if (destinationStatus) {
+    destinationStatus.textContent = savedDestinationLocation.displayName
+      ? `Cél: ${savedDestinationLocation.displayName}`
+      : "Celpont beallitva.";
+  }
+  if (userLocation) {
+    drawTripRouteLine(userLocation, destinationCoords);
+  }
+}
 
 try {
   const existingId = Number.parseInt(localStorage.getItem("resq_active_request") || "", 10);
