@@ -19,7 +19,7 @@
     <link rel="icon" href="src/favicon.ico" />
     <link rel="stylesheet" href="css/styles.css" />
   </head>
-  <body class="map-page">
+  <body class="app-theme map-page">
     <header>
       <a class="brand" href="index.html">
         <img src="src/logo.png" alt="resq logo" />
@@ -38,7 +38,19 @@
         <p class="notice ride-subtitle">Mentők, amik tetszeni fognak</p>
         <p class="notice" id="map-message"></p>
         <p class="notice" id="gps-accuracy"></p>
-        <div class="card" style="margin-bottom: 12px;">
+        <div class="card request-card user-position-card" id="user-position-card" style="margin-bottom: 12px;">
+          <div class="request-header">
+            <strong>Honnan induljunk?</strong>
+          </div>
+          <label>Cimed</label>
+          <input id="manual-location-input" type="text" placeholder="Cim, koordinata vagy Google Maps link" />
+          <p class="notice" id="manual-location-status" style="margin-top: 8px;"></p>
+          <div class="cta-row request-actions">
+            <button class="btn secondary" id="apply-manual-location-btn" type="button">Sajat hely beallitasa</button>
+            <button class="btn secondary" id="use-gps-btn" type="button">Helymeghatarozas</button>
+          </div>
+        </div>
+        <div class="card" id="destination-card" style="margin-bottom: 12px;">
           <strong>Hova szeretnél menni?</strong>
           <label>Cél cím</label>
           <input id="destination-input" type="text" placeholder="Pl. Budapest, Kelenföld" />
@@ -112,7 +124,7 @@
             <button class="btn secondary" id="request-status-hide" type="button">Bezár</button>
           </div>
         </div>
-        <div class="top-actions">
+        <div class="top-actions" id="providers-filters">
           <label>Radius km</label>
           <input id="radius-input" type="number" min="1" value="20" style="max-width: 90px;" />
           <label>Képesség</label>
