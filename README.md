@@ -1,137 +1,137 @@
 # ResQ
 
-## Local fejlesztes
+ResQ egy webes autómentő-közvetítő alkalmazás, amit vizsgaremek projektként készítettünk.
+A célunk az volt, hogy a bajba jutott autósok gyorsan találjanak elérhető autómentőt térképes nézetben, miközben a szolgáltatók is egyszerűen kezelni tudják a beérkező munkákat.
 
-### Backend
+## Projekt röviden
+
+A rendszer 3 fő szerepkört kezel:
+- Felhasználó (autós)
+- Szolgáltató (autómentő)
+- Admin
+
+Fő funkciók:
+- regisztráció / bejelentkezés
+- JWT alapú hitelesítés és szerepkörkezelés
+- térképes keresés (Leaflet + OSM)
+- közeli autómentők listázása
+- mentési kérés indítása és státusz követés
+- szolgáltatói státuszkezelés (online/offline, elfogadva, úton, megérkezett, lezárt)
+- felhasználó-szolgáltató chat
+- admin support felület
+
+## Technológiai stack
+
+- Frontend: HTML, CSS, JavaScript
+- Backend: Node.js + Express
+- Adatbázis: Microsoft SQL Server
+- Térkép: Leaflet + OpenStreetMap
+- Útvonal/ETA: OSRM API
+- Geokódolás: Nominatim API
+- Auth: JWT
+
+## Projekt struktúra
+
+```text
+ResQ/
+├─ backend/            # API + auth + üzleti logika
+├─ public/             # frontend oldalak és statikus fájlok
+├─ database/           # SQL script + DB export fájlok
+├─ deploy/             # szerveres indítási / publish segédfájlok
+├─ Dockerfile
+├─ docker-compose.publish.yml
+└─ ecosystem.config.cjs
+```
+
+## Local fejlesztés
+
+### 1) Backend
+
 ```powershell
 cd backend
+npm install
 npm run dev
 ```
 
-### Frontend
+Alapértelmezetten a backend a `5000` porton fut.
+
+### 2) Frontend
+
 ```powershell
 cd public
 npx serve .
 ```
 
-## Publish domainre
+A frontend fejlesztés közben külön is futtatható, de productionben a backend kiszolgálja a `public` mappát.
 
-A projekt most mar egyetlen Node szerverrol is tud futni:
-- a backend kiszolgalja az API-t
-- a backend kiszolgalja a `public` mappat is
-- productionben a frontend automatikusan ugyanarra a domainre kuldi az API hivasokat
+## Környezeti változók
 
-### 1. Production env letrehozasa
+A backendhez szükséges egy `.env` fájl a `backend` mappában.
 
-Masold ezt:
-- [backend/.env.production.example](D:/ResQ/backend/.env.production.example)
+Példa:
 
-Erre:
-- `backend/.env.production`
-
-Es allitsd be benne:
-- `DB_SERVER`
-- `DB_PORT`
-- `DB_USER`
-- `DB_PASSWORD`
-- `DB_NAME`
-- `JWT_SECRET`
-- `CORS_ORIGIN`
-
-Pelda:
 ```env
 DB_USER=sa
-DB_PASSWORD=very-strong-password
-DB_SERVER=your-sql-host
+DB_PASSWORD=your_password
+DB_SERVER=localhost
 DB_PORT=1433
 DB_NAME=ResQ
 JWT_SECRET=very-long-random-secret
-CORS_ORIGIN=https://resq.yourdomain.com
+CORS_ORIGIN=http://localhost:3000
 PORT=5000
 ```
 
-### 2. Docker publish
+Productionhöz használható minta:
+- `backend/.env.production.example`
 
-A gyokerben ezek a fajlok kellenek a publishhoz:
-- [Dockerfile](D:/ResQ/Dockerfile)
-- [docker-compose.publish.yml](D:/ResQ/docker-compose.publish.yml)
+## Adatbázis
 
-Inditas:
+A projekt SQL Serverre épül.
+A `database` mappában találhatók:
+- SQL script(ek)
+- export fájlok (`.bacpac`, `.zip`)
+
+A futtatás előtt ellenőrizni kell, hogy:
+- az SQL Server elérhető
+- a megadott user jogosult a kiválasztott adatbázisra
+- a tűzfal engedi a használt portot
+
+## Futtatás production környezetben
+
+### Dockerrel
+
 ```powershell
 docker compose -f docker-compose.publish.yml up -d --build
 ```
 
-Ez a kontenert a szerver `80`-as portjara teszi ki.
+### Docker nélkül (PM2)
 
-### 2/B. Publish Docker nelkul
-
-Ha nincs Docker telepitve, akkor futtathatod sima Node vagy PM2 alol is.
-
-#### PM2 telepites
 ```powershell
 npm install -g pm2
-```
-
-#### Production env
-Masold ezt:
-- [backend/.env.production.example](D:/ResQ/backend/.env.production.example)
-
-Erre:
-- `backend/.env.production`
-
-#### Inditas PM2-vel
-```powershell
-cd D:\ResQ
+cd D:\Projekt\ResQ
 pm2 start ecosystem.config.cjs
 pm2 save
 ```
 
-PM2 config:
-- [ecosystem.config.cjs](D:/ResQ/ecosystem.config.cjs)
+Vagy sima Node indítás:
 
-Ekkor a backend production modban indul, es automatikusan a `backend/.env.production` fajlt tolti be.
-
-#### Inditas PM2 nelkul
 ```powershell
-cd D:\ResQ\backend
+cd D:\Projekt\ResQ\backend
 $env:NODE_ENV="production"
 node src/server.js
 ```
 
-Ilyenkor a frontendet mar nem kell kulon `serve`-val inditani, mert a backend kiszolgalja a `public` mappat is.
+## Deploy jegyzet
 
-### 3. Domain beallitasa
+- A domain DNS `A` rekordja mutasson a szerver IP-jére.
+- Reverse proxy ajánlott (IIS + ARR, Nginx vagy Caddy).
+- HTTPS-hez érdemes proxy oldalon tanúsítványt kezelni.
 
-A domain DNS-ben allits be egy `A` recordot a szerver IP-jere.
+## Készítők
 
-Pelda:
-- `resq.yourdomain.com` -> `YOUR_SERVER_IP`
+- Bozsányi Kevin
+- Seres Alex Achilles
 
-### 4. Reverse proxy
+## Projekt státusz
 
-Ha a Node app a szerveren a `5000` porton fut, akkor a domaint erdemes reverse proxyval raengedni.
-
-Egyszeru opciok:
-- IIS + ARR Windows szerveren
-- Nginx Windows/Linux szerveren
-- Caddy
-- Nginx Proxy Manager
-
-### 5. Hasznalat
-
-Ha a szerveren fut az app es a domain az IP-re mutat, akkor az oldal innen elerheto:
-
-```text
-http://resq.yourdomain.com
-```
-
-Ha HTTPS kell, a legegyszerubb, ha a domain ele teszel egy reverse proxyt vagy cloud szolgaltatast:
-- Nginx Proxy Manager
-- Caddy
-- Cloudflare
-
-## Fontos
-
-- A backend SQL Server kapcsolatra epul, tehat a production szervernek el kell ernie az SQL Server peldanyt.
-- Ha a database kulon gepen fut, a tuzfalban engedelyezni kell a megfelelo portot.
-- Ha named instance-t hasznalsz, productionben altalaban stabilabb fix `DB_PORT`-ot megadni.
+Vizsgaremek projekt, aktív fejlesztés és finomhangolás alatt.
