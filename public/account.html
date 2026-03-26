@@ -18,11 +18,16 @@
       <a class="brand" href="index.html">
         <img src="src/logo.png" alt="resq logo" />
       </a>
+      <button class="nav-toggle" type="button" aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
       <nav class="nav-links">
         <a href="index.html">Kezdőlap</a>
         <a href="map.html">Térkép</a>
-        <a href="provider.html">Autómentő mód</a>
-        <a href="support.html">Üzenet adminnak</a>
+        <a href="provider.html" data-provider-link>Autómentő mód</a>
+        <a href="support.html" data-support-link>Üzenet adminnak</a>
         <a href="auth.html" data-auth-link>Belépés</a>
       </nav>
     </header>
@@ -34,18 +39,19 @@
 
         <div id="account-details" style="display: none;">
           <label>Név</label>
-          <input id="account-name" type="text" disabled />
+          <input id="account-name" type="text" />
 
           <label>Email</label>
           <input id="account-email" type="text" disabled />
 
           <label>Telefonszám</label>
-          <input id="account-phone" type="text" disabled />
+          <input id="account-phone" type="text" />
 
           <label>Fiók típusa</label>
           <input id="account-role" type="text" disabled />
 
           <div class="cta-row" style="margin-top: 18px;">
+            <button class="btn" id="account-save" type="button">Mentés</button>
             <button class="btn secondary" id="logout-btn" type="button">Kijelentkezés</button>
           </div>
         </div>

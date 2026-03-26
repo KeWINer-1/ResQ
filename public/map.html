@@ -24,17 +24,26 @@
       <a class="brand" href="index.html">
         <img src="src/logo.png" alt="resq logo" />
       </a>
+      <button class="nav-toggle" type="button" aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
       <nav class="nav-links">
         <a href="index.html">Kezdőlap</a>
         <a href="auth.html" data-auth-link>Belépés</a>
-        <a href="provider.html">Autómentő mód</a>
-        <a href="support.html">Üzenet adminnak</a>
+        <a href="provider.html" data-provider-link>Autómentő mód</a>
+        <a href="support.html" data-support-link>Üzenet adminnak</a>
       </nav>
     </header>
 
     <section class="map-layout">
       <aside class="sidebar">
-        <h2>Válassz autómentőt</h2>
+        <div class="sheet-grip" id="mobile-sheet-grip"></div>
+        <div class="sidebar-header">
+          <h2>Válassz autómentőt</h2>
+          <button class="back-button" id="mobile-trip-back" type="button" aria-label="Vissza">←</button>
+        </div>
         <p class="notice ride-subtitle">Mentők, amik tetszeni fognak</p>
         <p class="notice" id="map-message"></p>
         <p class="notice" id="gps-accuracy"></p>
@@ -67,15 +76,15 @@
           </div>
           <p class="notice" id="request-status-text" style="margin: 8px 0 0;"></p>
           <div class="request-metrics">
-            <div class="metric">
+            <div class="metric metric-eta">
               <div class="metric-label">Várható érkezés</div>
               <div class="metric-value" id="request-status-eta">-</div>
             </div>
-            <div class="metric">
+            <div class="metric metric-distance">
               <div class="metric-label">Távolság</div>
               <div class="metric-value" id="request-status-distance">-</div>
             </div>
-            <div class="metric">
+            <div class="metric metric-price">
               <div class="metric-label">Becsült díj</div>
               <div class="metric-value" id="request-status-price">-</div>
             </div>
@@ -96,6 +105,7 @@
             <button class="btn secondary" id="request-cancel-btn" type="button">Mentés lemondása</button>
             <button class="btn secondary" id="request-new-btn" type="button">Új mentő keresése</button>
           </div>
+          <p class="notice" id="request-cancel-hint" style="margin: 8px 0 0; display: none;"></p>
           <div class="request-chat" id="request-chat">
             <div class="chat-header">Üzenetek</div>
             <div class="chat-box" id="request-chat-box"></div>
@@ -145,6 +155,9 @@
       </aside>
       <div class="map-wrap">
         <div id="map" class="map"></div>
+        <div class="mobile-home-cta" id="mobile-home-cta">
+          <button class="btn" id="mobile-help-btn" type="button">Segítség kérése</button>
+        </div>
         <button class="btn secondary mobile-toggle" id="mobile-list-toggle" type="button">Mentők listája</button>
         <div class="map-overlay" id="provider-select-card" style="display: none;">
           <div class="panel-header">
@@ -179,6 +192,17 @@
         <div class="toast" id="status-toast"></div>
       </div>
     </section>
+    <div class="modal-backdrop" id="request-notes-modal" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-title">Mi a probléma?</div>
+        <p class="notice">Opcionális leírás a mentőnek.</p>
+        <textarea id="request-notes-input" rows="3" placeholder="Pl. defekt, lerobbant motor..."></textarea>
+        <div class="cta-row" style="margin-top: 12px;">
+          <button class="btn secondary" id="request-notes-cancel" type="button">Mégse</button>
+          <button class="btn" id="request-notes-send" type="button">Küldés</button>
+        </div>
+      </div>
+    </div>
 
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"

@@ -49,6 +49,7 @@ header {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
+  position: relative;
 }
 
 .brand {
@@ -112,6 +113,26 @@ header {
   gap: 8px;
 }
 
+.nav-toggle {
+  display: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 17, 22, 0.6);
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.nav-toggle span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: #f5f5f5;
+  border-radius: 999px;
+}
+
 header {
   gap: 24px;
 }
@@ -170,6 +191,14 @@ header {
 .btn:hover {
   transform: translateY(-2px);
   background: var(--accent-dark);
+}
+
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  filter: grayscale(0.2);
 }
 
 .app-theme .btn,
@@ -342,6 +371,13 @@ textarea {
   color: #aeb3bd;
 }
 
+.map-page .ride-subtitle,
+.map-page #map-message,
+.map-page #manual-location-status,
+.map-page #gps-accuracy {
+  display: none !important;
+}
+
 .map-layout {
   display: grid;
   grid-template-columns: minmax(320px, 420px) 1fr;
@@ -356,6 +392,35 @@ textarea {
   box-shadow: 0 12px 24px rgba(16, 16, 16, 0.08);
   max-height: 80vh;
   overflow-y: auto;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.back-button {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(12, 14, 18, 0.7);
+  color: #f5f5f5;
+  font-size: 18px;
+}
+
+.sheet-grip {
+  display: none;
+  width: 42px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 auto 10px;
 }
 
 .app-theme .sidebar,
@@ -969,45 +1034,225 @@ textarea {
   border-color: rgba(255, 138, 31, 0.22);
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 9, 12, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1200;
+}
+
+.modal-card {
+  width: min(420px, 92vw);
+  background: #151922;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.modal-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.modal-card textarea {
+  width: 100%;
+  margin-top: 8px;
+  min-height: 90px;
+  resize: vertical;
+}
+
 @media (max-width: 900px) {
   .map-layout {
     grid-template-columns: 1fr;
-    padding: 8px 4vw 24px;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
   }
 
   .map {
-    height: 60vh;
+    height: 100vh;
+    border-radius: 0;
   }
 
-  .sidebar {
+  .map-page.mobile-form-open:not(.trip-ready) .map-wrap {
+    display: none;
+  }
+
+  .map-page.mobile-form-open:not(.trip-ready) .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    height: 100vh;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .map-page.mobile-form-open:not(.trip-ready) #providers-list,
+  .map-page.mobile-form-open:not(.trip-ready) .map-overlay {
+    display: none;
+  }
+
+  .map-page:not(.mobile-form-open):not(.trip-ready) .sidebar {
+    display: none;
+  }
+
+  .map-page .sidebar {
     max-height: none;
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
     z-index: 500;
-    border-radius: 18px 18px 0 0;
-    transform: translateY(68%);
-    transition: transform 0.25s ease;
+    height: 42vh;
+    max-height: 55vh;
+    border-radius: 24px 24px 0 0;
+    transform: translateY(0);
+    transition: height 0.22s ease;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.45);
   }
 
-  .map-overlay {
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
+  .map-page.sheet-expanded .sidebar {
+    height: 88vh;
+    max-height: 92vh;
+  }
+
+  .map-page.sheet-expanded .map-overlay {
+    display: none;
+  }
+
+  .map-page.trip-ui-collapsed .user-position-card,
+  .map-page.trip-ui-collapsed #destination-card {
+    display: none;
+  }
+
+  .map-page.trip-ready:not(.mobile-form-open) .user-position-card,
+  .map-page.trip-ready:not(.mobile-form-open) #destination-card {
+    display: none;
+  }
+
+  .map-page.trip-ui-collapsed .back-button {
+    display: inline-flex;
+  }
+
+  .map-page .sheet-grip {
+    display: block;
+  }
+
+  .map-page .map-overlay {
+    left: 12px;
+    right: 12px;
+    bottom: calc(42vh + 12px);
+    width: auto;
     border-radius: 18px 18px 0 0;
     padding: 16px 16px 22px;
     max-height: 55vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
-  .sidebar.is-open {
-    transform: translateY(0);
+  .map-page .mobile-toggle {
+    display: none;
   }
 
-  .mobile-toggle {
+  .map-page #providers-filters {
+    display: none;
+  }
+
+  .map-page .request-card.is-pending .timeline {
+    display: none;
+  }
+
+  .map-page .request-card.is-pending .metric-eta,
+  .map-page .request-card.is-pending .metric-distance {
+    display: none;
+  }
+
+  .map-page .mobile-home-cta {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 18px;
+    z-index: 600;
+    display: none;
+  }
+
+  .map-page.mobile-home .mobile-home-cta {
+    display: block;
+  }
+
+  .map-page .mobile-home-cta .btn {
+    width: 100%;
+    padding: 14px 18px;
+    border-radius: 14px;
+    font-size: 1rem;
+  }
+
+  .map-page .sidebar h2,
+  .map-page #providers-header,
+  .map-page #providers-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .nav-toggle {
     display: inline-flex;
+  }
+
+  .nav-links {
+    position: absolute;
+    top: 68px;
+    right: 4vw;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px;
+    border-radius: 14px;
+    background: #151922;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: var(--shadow);
+    display: none;
+    min-width: 180px;
+    z-index: 999;
+  }
+
+  header.nav-open .nav-links {
+    display: flex;
+  }
+
+  .map-page header {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    padding: 0;
+    background: transparent;
+    z-index: 900;
+    justify-content: flex-end;
+  }
+
+  .map-page header .brand {
+    display: none;
+  }
+
+  .map-page .nav-toggle {
+    position: fixed;
+    right: 16px;
+    top: 16px;
+    z-index: 1000;
+  }
+
+  .map-page .nav-links {
+    position: fixed;
+    right: 16px;
+    top: 64px;
   }
 }
 
@@ -1021,8 +1266,22 @@ textarea {
     height: 62px;
   }
 
+  .nav-links {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .nav-links a {
     margin-left: 0;
+  }
+
+  .section {
+    padding: 24px 4vw;
+  }
+
+  .form-card {
+    margin: 20px auto;
+    padding: 16px;
   }
 
   .top-actions {
