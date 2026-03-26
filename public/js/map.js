@@ -28,6 +28,7 @@ const requestCallBtn = document.getElementById("request-call-btn");
 const requestMessageBtn = document.getElementById("request-message-btn");
 const requestCancelBtn = document.getElementById("request-cancel-btn");
 const requestNewBtn = document.getElementById("request-new-btn");
+const requestCancelHint = document.getElementById("request-cancel-hint");
 const requestChat = document.getElementById("request-chat");
 const requestChatBox = document.getElementById("request-chat-box");
 const requestChatInput = document.getElementById("request-chat-input");
@@ -54,6 +55,13 @@ const statusToast = document.getElementById("status-toast");
 const providersFilters = document.getElementById("providers-filters");
 const providersHeader = document.getElementById("providers-header");
 const providersHint = document.getElementById("providers-hint");
+const requestNotesModal = document.getElementById("request-notes-modal");
+const requestNotesInput = document.getElementById("request-notes-input");
+const requestNotesCancel = document.getElementById("request-notes-cancel");
+const requestNotesSend = document.getElementById("request-notes-send");
+const mobileHelpCta = document.getElementById("mobile-home-cta");
+const mobileHelpBtn = document.getElementById("mobile-help-btn");
+const mobileSheetGrip = document.getElementById("mobile-sheet-grip");
 
 const currentRole = getUserRole();
 if (currentRole === "Provider") {
@@ -87,6 +95,7 @@ let routeGeometryData = null;
 let lastMessageFetchAt = 0;
 let lastMessageId = 0;
 let activeJobId = null;
+let currentJobStatus = null;
 let userWatchId = null;
 let manualLocationOverride = false;
 let lastUserUpdateAt = 0;
@@ -98,6 +107,11 @@ let tripDurationMinutes = null;
 let tripRouteKey = null;
 let tripRouteFetchAt = 0;
 let rideFocusActive = false;
+let requestNotesResolver = null;
+let tripUiManualExpand = false;
+let tripUiForceForm = false;
+let tripReadyState = false;
+let sheetExpanded = false;
 const manualLocationStorageKey = "resq_manual_user_location";
 const destinationStorageKey = "resq_destination_location";
 
@@ -294,12 +308,17 @@ function formatEta(minutes) {
 
 function applyUserLocation(lat, lng, accuracy, zoom = 13) {
   userLocation = { lat, lng };
-  if (!map) {
-    initMap(lat, lng);
-  } else {
-    map.setView([lat, lng], zoom);
-    if (userMarker) {
-      userMarker.setLatLng([lat, lng]);
+  const isMobile = window.matchMedia("(max-width: 900px)").matches;
+  const tripReady = document.body.classList.contains("trip-ready");
+  const mobileHome = document.body.classList.contains("mobile-home");
+  if (!isMobile || tripReady || mobileHome) {
+    if (!map) {
+      initMap(lat, lng);
+    } else {
+      map.setView([lat, lng], zoom);
+      if (userMarker) {
+        userMarker.setLatLng([lat, lng]);
+      }
     }
   }
   if (gpsAccuracyEl) {
@@ -310,14 +329,22 @@ function applyUserLocation(lat, lng, accuracy, zoom = 13) {
         : "";
   }
   if (destinationCoords) {
-    drawTripRouteLine(userLocation, destinationCoords);
+    if (!isMobile || tripReady || mobileHome) {
+      drawTripRouteLine(userLocation, destinationCoords);
+    }
+    fetchTripRoute(userLocation, destinationCoords)
+      .then(() => {
+        updateRequestAvailability();
+      })
+      .catch(() => {});
   }
-  if (shouldRefreshProviders(lat, lng)) {
+  if ((!isMobile || tripReady || mobileHome) && shouldRefreshProviders(lat, lng)) {
     lastUserUpdateAt = Date.now();
     lastUserCoords = { lat, lng };
     updateRadiusCircle();
     loadProviders();
   }
+  updateTripUiState(false);
 }
 
 function estimateEtaMinutes(distanceKm) {
@@ -400,6 +427,7 @@ async function applyManualLocation() {
       lat: place.lat,
       lng: place.lng
     });
+    showToast("Hely beallitva.");
     if (manualLocationStatus) {
       manualLocationStatus.textContent = "Cim beallitva.";
     }
@@ -528,6 +556,28 @@ function clearTripRouteLine() {
     activeTripRouteLine.remove();
     activeTripRouteLine = null;
   }
+}
+
+function resetTripCalculation() {
+  destinationCoords = null;
+  tripDistanceKm = null;
+  tripDurationMinutes = null;
+  tripRouteKey = null;
+  tripRouteFetchAt = 0;
+  clearTripRouteLine();
+  clearDestinationMarker();
+  clearDestinationLocation();
+  if (destinationInput) {
+    destinationInput.value = "";
+  }
+  if (destinationStatus) {
+    destinationStatus.textContent = "";
+  }
+  tripUiManualExpand = false;
+  tripUiForceForm = false;
+  tripReadyState = false;
+  updateRequestAvailability();
+  updateTripUiState(false);
 }
 
 function clearDestinationMarker() {
@@ -670,9 +720,11 @@ function showProviderOverlay(provider) {
     providerSelectEta.textContent = `~${formatEta(estimateEtaMinutes(provider.distanceKm))}`;
   }
   if (providerSelectPrice) {
-    const usedDistance = Number.isFinite(tripDistanceKm) ? tripDistanceKm : provider.distanceKm;
-    const estimate = estimatePrice(usedDistance, provider);
-    providerSelectPrice.textContent = estimate ? `${formatCurrency(estimate)}-tól` : "Nincs adat";
+    const hasTrip = Number.isFinite(tripDistanceKm);
+    const estimate = hasTrip ? estimatePrice(tripDistanceKm, provider) : null;
+    providerSelectPrice.textContent = estimate
+      ? formatCurrency(estimate)
+      : "Adj meg celcimet";
   }
   if (providerSelectTags) {
     const caps = provider.capabilities || [];
@@ -694,7 +746,125 @@ function showProviderOverlay(provider) {
       providerSelectCall.style.opacity = "0.6";
     }
   }
+  updateRequestAvailability();
   providerSelectCard.style.display = "block";
+}
+
+function updateRequestAvailability() {
+  const canRequest = Number.isFinite(tripDistanceKm);
+  if (providerSelectRequest) {
+    providerSelectRequest.disabled = !canRequest;
+    providerSelectRequest.textContent = canRequest ? "Mentes kerese" : "Adj meg celcimet";
+  }
+  if (providersHint) {
+    providersHint.textContent = canRequest
+      ? "Koppints a mentore a reszletekhez."
+      : "Add meg a celcimet, hogy kerest kuldhess.";
+  }
+  updateTripUiState();
+}
+
+function setTripUiCollapsed(collapsed) {
+  document.body.classList.toggle("trip-ui-collapsed", collapsed);
+}
+
+function ensureMapReady() {
+  const start = userLocation || fallbackLocation;
+  if (!map) {
+    initMap(start.lat, start.lng);
+  } else {
+    map.invalidateSize(true);
+    if (Number.isFinite(start.lat) && Number.isFinite(start.lng)) {
+      map.setView([start.lat, start.lng], map.getZoom() || 13);
+      if (userMarker) {
+        userMarker.setLatLng([start.lat, start.lng]);
+      }
+    }
+  }
+  updateRadiusCircle();
+}
+
+function setMobileFormOpen(open) {
+  document.body.classList.toggle("mobile-form-open", open);
+  document.body.classList.toggle("mobile-home", !open && !tripReadyState);
+  if (!open && !tripReadyState) {
+    ensureMapReady();
+  }
+}
+
+function setSheetExpanded(expanded) {
+  sheetExpanded = expanded;
+  document.body.classList.toggle("sheet-expanded", expanded);
+  if (!expanded && map) {
+    map.invalidateSize(true);
+  }
+}
+
+function updateMobileHomeState() {
+  const isMobile = window.matchMedia("(max-width: 900px)").matches;
+  if (!isMobile) {
+    document.body.classList.remove("mobile-home");
+    document.body.classList.remove("mobile-form-open");
+    return;
+  }
+  if (tripReadyState) {
+    document.body.classList.remove("mobile-home");
+    return;
+  }
+  const formOpen = document.body.classList.contains("mobile-form-open");
+  document.body.classList.toggle("mobile-home", !formOpen);
+  if (!formOpen) {
+    ensureMapReady();
+  }
+}
+
+function updateTripUiState(forceCollapse = false) {
+  const isMobile = window.matchMedia("(max-width: 900px)").matches;
+  if (!isMobile) {
+    document.body.classList.remove("trip-ready");
+    setTripUiCollapsed(false);
+    tripReadyState = false;
+    return;
+  }
+  if (tripUiForceForm) {
+    document.body.classList.remove("trip-ready");
+    setTripUiCollapsed(false);
+    tripReadyState = false;
+    updateMobileHomeState();
+    return;
+  }
+  if (!Number.isFinite(tripDistanceKm)) {
+    tripUiManualExpand = false;
+    document.body.classList.remove("trip-ready");
+    setTripUiCollapsed(false);
+    tripReadyState = false;
+    setSheetExpanded(false);
+    updateMobileHomeState();
+    return;
+  }
+  document.body.classList.add("trip-ready");
+  if (!tripReadyState) {
+    tripReadyState = true;
+    ensureMapReady();
+    setTimeout(() => {
+      if (map) map.invalidateSize(true);
+    }, 120);
+  }
+  document.body.classList.remove("mobile-home");
+  document.body.classList.remove("mobile-form-open");
+  if (forceCollapse) {
+    setSheetExpanded(false);
+  }
+  if (forceCollapse) {
+    tripUiManualExpand = false;
+    setTripUiCollapsed(true);
+    return;
+  }
+  if (tripUiManualExpand) {
+    setTripUiCollapsed(false);
+    return;
+  }
+  setTripUiCollapsed(true);
 }
 
 function renderRequestMessages(messages) {
@@ -777,10 +947,35 @@ function showToast(message) {
   }, 4000);
 }
 
+function openRequestNotesModal() {
+  if (!requestNotesModal || !requestNotesInput) {
+    return Promise.resolve({ cancelled: false, notes: "" });
+  }
+  requestNotesInput.value = "";
+  requestNotesModal.style.display = "flex";
+  requestNotesInput.focus();
+  return new Promise((resolve) => {
+    requestNotesResolver = resolve;
+  });
+}
+
+function closeRequestNotesModal(cancelled) {
+  if (!requestNotesModal) return;
+  requestNotesModal.style.display = "none";
+  if (requestNotesResolver) {
+    requestNotesResolver({
+      cancelled,
+      notes: requestNotesInput?.value?.trim() || ""
+    });
+    requestNotesResolver = null;
+  }
+}
+
 async function updateRequestStatusUI(data) {
   const jobStatus = data?.job?.Status || data?.job?.status;
   const requestStatus = data?.status || "new";
   const provider = data?.provider || null;
+  currentJobStatus = jobStatus || null;
   const statusForTimeline = jobStatus || requestStatus || "new";
   const jobLabel = jobStatusLabel(jobStatus);
   const requestLabel =
@@ -804,6 +999,22 @@ async function updateRequestStatusUI(data) {
 
   if (requestStatusPill) {
     requestStatusPill.textContent = requestLabel || "Várakozás";
+  }
+
+  const isPending = requestStatus === "new" && !jobStatus;
+  if (requestStatusCard) {
+    requestStatusCard.classList.toggle("is-pending", isPending);
+  }
+  if (isPending && requestStatusPill) {
+    requestStatusPill.textContent = "Elfogadasra var";
+  }
+  if (isPending && requestStatusText) {
+    requestStatusText.textContent = "Elfogadasra var";
+  }
+  if (isPending) {
+    tripUiForceForm = false;
+    setMobileFormOpen(false);
+    updateTripUiState(true);
   }
 
   updateTimeline(statusForTimeline);
@@ -863,8 +1074,12 @@ async function updateRequestStatusUI(data) {
   }
 
   if (requestStatusPrice) {
-    const estimate = estimatePrice(distanceKm, provider);
-    requestStatusPrice.textContent = formatCurrency(estimate);
+    const estimate = Number.isFinite(tripDistanceKm)
+      ? estimatePrice(tripDistanceKm, provider)
+      : null;
+    requestStatusPrice.textContent = estimate
+      ? formatCurrency(estimate)
+      : "Adj meg celcimet";
   }
 
   if (requestStatusUpdated) {
@@ -904,10 +1119,19 @@ async function updateRequestStatusUI(data) {
     requestStatusControl.style.display = activeRequestId ? "flex" : "none";
   }
   if (requestCancelBtn) {
+    const cancelLocked = ["enroute", "arrived"].includes(jobStatus);
     requestCancelBtn.style.display =
-      statusForTimeline === "cancelled" || statusForTimeline === "completed"
+      statusForTimeline === "cancelled" ||
+      statusForTimeline === "completed" ||
+      cancelLocked
         ? "none"
         : "inline-flex";
+    if (requestCancelHint) {
+      requestCancelHint.style.display = cancelLocked ? "block" : "none";
+      requestCancelHint.textContent = cancelLocked
+        ? "Lemondas csak ugyfelszolgalaton."
+        : "";
+    }
   }
   if (requestNewBtn) {
     requestNewBtn.style.display =
@@ -984,6 +1208,9 @@ function startRequestPolling(requestId) {
         requestStatus === "completed" ||
         requestStatus === "cancelled"
       ) {
+        if (jobStatus === "completed" || requestStatus === "completed") {
+          resetTripCalculation();
+        }
         clearInterval(requestPollTimer);
         requestPollTimer = null;
         activeRequestId = null;
@@ -1029,6 +1256,80 @@ mobileListToggle?.addEventListener("click", () => {
   sidebarEl?.classList.toggle("is-open");
 });
 
+mobileHelpBtn?.addEventListener("click", () => {
+  tripUiForceForm = true;
+  setMobileFormOpen(true);
+  sidebarEl?.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+let sheetStartY = null;
+mobileSheetGrip?.addEventListener("touchstart", (event) => {
+  sheetStartY = event.touches[0]?.clientY ?? null;
+});
+mobileSheetGrip?.addEventListener("touchend", (event) => {
+  if (sheetStartY == null) return;
+  const endY = event.changedTouches[0]?.clientY ?? sheetStartY;
+  const delta = endY - sheetStartY;
+  if (delta < -40) {
+    setSheetExpanded(true);
+  } else if (delta > 40) {
+    setSheetExpanded(false);
+  }
+  sheetStartY = null;
+});
+mobileSheetGrip?.addEventListener("click", () => {
+  setSheetExpanded(!sheetExpanded);
+});
+
+let sheetDragStart = null;
+sidebarEl?.addEventListener("touchstart", (event) => {
+  const touch = event.touches[0];
+  if (!touch) return;
+  const rect = sidebarEl.getBoundingClientRect();
+  if (touch.clientY - rect.top > 60) return;
+  sheetDragStart = touch.clientY;
+});
+sidebarEl?.addEventListener("touchend", (event) => {
+  if (sheetDragStart == null) return;
+  const endY = event.changedTouches[0]?.clientY ?? sheetDragStart;
+  const delta = endY - sheetDragStart;
+  if (delta < -40) {
+    setSheetExpanded(true);
+  } else if (delta > 40) {
+    setSheetExpanded(false);
+  }
+  sheetDragStart = null;
+});
+
+document.getElementById("mobile-trip-back")?.addEventListener("click", () => {
+  tripUiManualExpand = true;
+  tripUiForceForm = true;
+  setTripUiCollapsed(false);
+  setMobileFormOpen(true);
+  updateTripUiState(false);
+  sidebarEl?.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+requestNotesCancel?.addEventListener("click", () => {
+  closeRequestNotesModal(true);
+});
+
+requestNotesSend?.addEventListener("click", () => {
+  closeRequestNotesModal(false);
+});
+
+requestNotesModal?.addEventListener("click", (event) => {
+  if (event.target === requestNotesModal) {
+    closeRequestNotesModal(true);
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && requestNotesModal?.style?.display === "flex") {
+    closeRequestNotesModal(true);
+  }
+});
+
 destinationCalcBtn?.addEventListener("click", async () => {
   const query = destinationInput?.value?.trim();
   if (!query) {
@@ -1064,6 +1365,9 @@ destinationCalcBtn?.addEventListener("click", async () => {
     if (destinationStatus && route) {
       destinationStatus.textContent = `Cél: ${place.displayName} | ${Math.round(route.distanceKm * 10) / 10} km | ~${Math.round(route.durationMinutes)} perc`;
     }
+    tripUiForceForm = false;
+    updateRequestAvailability();
+    updateTripUiState(true);
     loadProviders();
   } catch (err) {
     if (destinationStatus) {
@@ -1073,25 +1377,18 @@ destinationCalcBtn?.addEventListener("click", async () => {
 });
 
 destinationClearBtn?.addEventListener("click", () => {
-  destinationCoords = null;
-  tripDistanceKm = null;
-  tripDurationMinutes = null;
-  tripRouteKey = null;
-  tripRouteFetchAt = 0;
-  clearTripRouteLine();
-  clearDestinationMarker();
-  clearDestinationLocation();
-  if (destinationInput) {
-    destinationInput.value = "";
-  }
-  if (destinationStatus) {
-    destinationStatus.textContent = "";
-  }
+  resetTripCalculation();
+  updateRequestAvailability();
   loadProviders();
 });
 
 requestCancelBtn?.addEventListener("click", async () => {
   if (!activeRequestId) return;
+  if (["enroute", "arrived"].includes(currentJobStatus)) {
+    mapMessage.textContent = "Lemondas csak ugyfelszolgalaton.";
+    showToast("Lemondas csak ugyfelszolgalaton.");
+    return;
+  }
   if (!confirm("Biztosan lemondod a mentést?")) return;
   try {
     await apiFetch(`/api/requests/${activeRequestId}/cancel`, {
@@ -1293,6 +1590,7 @@ async function loadProviders() {
         providersHeader.textContent = "Mentők listája";
       }
     }
+    updateRequestAvailability();
   } catch (err) {
     providersList.innerHTML = `<p class="notice">${err.message}</p>`;
   }
@@ -1312,7 +1610,17 @@ async function requestHelp(provider) {
   if (!userLocation) {
     return;
   }
-  const notes = prompt("Mi a probléma? (opcionális)") || "";
+  if (!Number.isFinite(tripDistanceKm)) {
+    mapMessage.textContent = "Adj meg celcimet a kereseshez.";
+    showToast("Adj meg celcimet a kereseshez.");
+    return;
+  }
+  const modalResult = await openRequestNotesModal();
+  if (modalResult.cancelled) {
+    mapMessage.textContent = "Keres megszakitva.";
+    return;
+  }
+  const notes = modalResult.notes || "";
   try {
     const created = await apiFetch("/api/requests", {
       method: "POST",
@@ -1353,8 +1661,18 @@ async function requestHelpSafe(provider) {
     mapMessage.textContent = "Add meg, honnan induljunk.";
     return;
   }
+  if (!Number.isFinite(tripDistanceKm)) {
+    mapMessage.textContent = "Adj meg celcimet a kereseshez.";
+    showToast("Adj meg celcimet a kereseshez.");
+    return;
+  }
 
-  const notes = prompt("Mi a problema? (opcionalis)") || "";
+  const modalResult = await openRequestNotesModal();
+  if (modalResult.cancelled) {
+    mapMessage.textContent = "Keres megszakitva.";
+    return;
+  }
+  const notes = modalResult.notes || "";
 
   try {
     if (providerSelectRequest) {
@@ -1384,10 +1702,7 @@ async function requestHelpSafe(provider) {
   } catch (err) {
     mapMessage.textContent = err.message || "Nem sikerult elkuldeni a kerest.";
   } finally {
-    if (providerSelectRequest) {
-      providerSelectRequest.disabled = false;
-      providerSelectRequest.textContent = "Mentes kerese";
-    }
+    updateRequestAvailability();
   }
 }
 
@@ -1449,6 +1764,7 @@ useGpsBtn?.addEventListener("click", () => {
   if (manualLocationStatus) {
     manualLocationStatus.textContent = "GPS aktiv.";
   }
+  showToast("GPS helyzet frissitese...");
   locateUser();
 });
 radiusInput.addEventListener("input", () => {
@@ -1473,6 +1789,16 @@ if (savedManualLocation) {
   locateUser();
 }
 
+if (!Number.isFinite(tripDistanceKm)) {
+  setMobileFormOpen(false);
+}
+updateMobileHomeState();
+
+window.addEventListener("resize", () => {
+  updateMobileHomeState();
+  updateTripUiState(false);
+});
+
 const savedDestinationLocation = loadDestinationLocation();
 if (savedDestinationLocation) {
   destinationCoords = {
@@ -1489,9 +1815,15 @@ if (savedDestinationLocation) {
       ? `Cél: ${savedDestinationLocation.displayName}`
       : "Celpont beallitva.";
   }
-  if (userLocation) {
-    drawTripRouteLine(userLocation, destinationCoords);
-  }
+  fetchTripRoute(userLocation || fallbackLocation, destinationCoords)
+    .then(() => {
+      updateRequestAvailability();
+      updateTripUiState(true);
+      if (userLocation) {
+        drawTripRouteLine(userLocation, destinationCoords);
+      }
+    })
+    .catch(() => {});
 }
 
 try {

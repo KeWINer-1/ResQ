@@ -33,45 +33,90 @@ function createSmtpTransport() {
   });
 }
 
+async function fetchUserProfile(pool, userId) {
+  const result = await pool
+    .request()
+    .input("userId", sql.Int, userId)
+    .query(
+      "SELECT u.Id, u.Email, u.Role, u.Name, u.Phone, p.Id AS ProviderId, p.Name AS ProviderName, p.Phone AS ProviderPhone FROM Users u LEFT JOIN Providers p ON p.UserId = u.Id WHERE u.Id = @userId"
+    );
+
+  if (result.recordset.length === 0) {
+    return null;
+  }
+
+  const row = result.recordset[0];
+  let provider = null;
+
+  if (row.ProviderId) {
+    const caps = await pool
+      .request()
+      .input("providerId", sql.Int, row.ProviderId)
+      .query(
+        "SELECT Capability FROM ProviderCapabilities WHERE ProviderId = @providerId ORDER BY Capability"
+      );
+
+    provider = {
+      id: row.ProviderId,
+      name: row.ProviderName,
+      phone: row.ProviderPhone,
+      capabilities: caps.recordset.map((capRow) => capRow.Capability)
+    };
+  }
+
+  return {
+    id: row.Id,
+    email: row.Email,
+    role: row.Role,
+    name: row.Name || null,
+    phone: row.Phone || null,
+    provider
+  };
+}
+
 router.get("/me", authRequired, async (req, res) => {
   try {
     const pool = await getPool();
-    const result = await pool
-      .request()
-      .input("userId", sql.Int, req.user.userId)
-      .query(
-        "SELECT u.Id, u.Email, u.Role, p.Id AS ProviderId, p.Name AS ProviderName, p.Phone AS ProviderPhone FROM Users u LEFT JOIN Providers p ON p.UserId = u.Id WHERE u.Id = @userId"
-      );
-
-    if (result.recordset.length === 0) {
+    const profile = await fetchUserProfile(pool, req.user.userId);
+    if (!profile) {
       return res.status(404).json({ error: "User not found" });
     }
+    return res.json(profile);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
 
-    const row = result.recordset[0];
-    let provider = null;
+router.patch("/me", authRequired, async (req, res) => {
+  const { name, phone } = req.body || {};
+  const safeName = typeof name === "string" ? name.trim() : null;
+  const safePhone = typeof phone === "string" ? phone.trim() : null;
 
-    if (row.ProviderId) {
-      const caps = await pool
+  try {
+    const pool = await getPool();
+
+    if (req.user.role === "Provider") {
+      await pool
         .request()
-        .input("providerId", sql.Int, row.ProviderId)
+        .input("userId", sql.Int, req.user.userId)
+        .input("name", sql.VarChar, safeName || null)
+        .input("phone", sql.VarChar, safePhone || null)
         .query(
-          "SELECT Capability FROM ProviderCapabilities WHERE ProviderId = @providerId ORDER BY Capability"
+          "UPDATE Providers SET Name = COALESCE(@name, Name), Phone = COALESCE(@phone, Phone) WHERE UserId = @userId"
         );
-
-      provider = {
-        id: row.ProviderId,
-        name: row.ProviderName,
-        phone: row.ProviderPhone,
-        capabilities: caps.recordset.map((capRow) => capRow.Capability)
-      };
+    } else {
+      await pool
+        .request()
+        .input("userId", sql.Int, req.user.userId)
+        .input("name", sql.VarChar, safeName || null)
+        .input("phone", sql.VarChar, safePhone || null)
+        .query(
+          "UPDATE Users SET Name = @name, Phone = @phone, UpdatedAt = GETUTCDATE() WHERE Id = @userId"
+        );
     }
 
-    return res.json({
-      id: row.Id,
-      email: row.Email,
-      role: row.Role,
-      provider
-    });
+    const profile = await fetchUserProfile(pool, req.user.userId);
+    return res.json(profile);
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
   }
@@ -110,13 +155,17 @@ router.post("/register", async (req, res) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
+    const userName = role === "User" ? name || null : null;
+    const userPhone = role === "User" ? phone || null : null;
     const userResult = await pool
       .request()
       .input("email", sql.VarChar, email)
       .input("passwordHash", sql.VarChar, passwordHash)
       .input("role", sql.VarChar, role)
+      .input("name", sql.VarChar, userName)
+      .input("phone", sql.VarChar, userPhone)
       .query(
-        "INSERT INTO Users (Email, PasswordHash, Role) OUTPUT INSERTED.Id VALUES (@email, @passwordHash, @role)"
+        "INSERT INTO Users (Email, PasswordHash, Role, Name, Phone) OUTPUT INSERTED.Id VALUES (@email, @passwordHash, @role, @name, @phone)"
       );
 
     const userId = userResult.recordset[0].Id;

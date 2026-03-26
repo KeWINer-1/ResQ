@@ -275,6 +275,15 @@ router.patch("/:id(\\d+)/cancel", authRequired, requireRole("User"), async (req,
       return res.status(403).json({ error: "Forbidden" });
     }
 
+    const jobResult = await pool
+      .request()
+      .input("requestId", sql.Int, id)
+      .query("SELECT TOP 1 Status FROM Jobs WHERE RequestId = @requestId");
+    const jobStatus = jobResult.recordset[0]?.Status || null;
+    if (["enroute", "arrived"].includes(jobStatus)) {
+      return res.status(409).json({ error: "Lemondas csak ugyfelszolgalaton." });
+    }
+
     if (row.Status === "completed") {
       return res.status(409).json({ error: "Request already completed" });
     }
@@ -299,6 +308,13 @@ router.patch("/:id(\\d+)/cancel", authRequired, requireRole("User"), async (req,
       .query(
         "UPDATE Jobs SET Status = @status, UpdatedAt = GETUTCDATE() WHERE RequestId = @requestId AND ProviderId = @providerId"
       );
+
+    if (row.SelectedProviderId) {
+      await pool
+        .request()
+        .input("providerId", sql.Int, row.SelectedProviderId)
+        .query("UPDATE Providers SET IsOnline = 1 WHERE Id = @providerId");
+    }
 
     return res.json({ ok: true });
   } catch (err) {
