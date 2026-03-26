@@ -182,7 +182,7 @@ router.post("/login", async (req, res) => {
       );
 
     if (result.recordset.length === 0) {
-      return res.status(401).json({ error: "Invalid credentials" });
+      return res.status(404).json({ error: "Account not found" });
     }
 
     const user = result.recordset[0];
@@ -216,47 +216,47 @@ router.post("/forgot-password", async (req, res) => {
       .input("email", sql.VarChar, email)
       .query("SELECT Id FROM Users WHERE Email = @email");
 
-    if (userResult.recordset.length > 0) {
-      const userId = userResult.recordset[0].Id;
-      const resetToken = crypto.randomBytes(32).toString("hex");
-      const tokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    if (userResult.recordset.length === 0) {
+      return res.status(404).json({ error: "Account not found" });
+    }
 
-      await pool
-        .request()
-        .input("userId", sql.Int, userId)
-        .query("DELETE FROM PasswordResetTokens WHERE UserId = @userId");
+    const userId = userResult.recordset[0].Id;
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
-      await pool
-        .request()
-        .input("userId", sql.Int, userId)
-        .input("tokenHash", sql.VarChar, tokenHash)
-        .input("expiresAt", sql.DateTime2, expiresAt)
-        .query(
-          "INSERT INTO PasswordResetTokens (UserId, TokenHash, ExpiresAt) VALUES (@userId, @tokenHash, @expiresAt)"
-        );
+    await pool
+      .request()
+      .input("userId", sql.Int, userId)
+      .query("DELETE FROM PasswordResetTokens WHERE UserId = @userId");
 
-      const resetUrl = `${getResetBaseUrl(req)}/auth.html?mode=forgot&token=${encodeURIComponent(
-        resetToken
-      )}`;
-      const from = process.env.MAIL_FROM || process.env.SMTP_USER || "no-reply@resq.local";
-      const transporter = createSmtpTransport();
+    await pool
+      .request()
+      .input("userId", sql.Int, userId)
+      .input("tokenHash", sql.VarChar, tokenHash)
+      .input("expiresAt", sql.DateTime2, expiresAt)
+      .query(
+        "INSERT INTO PasswordResetTokens (UserId, TokenHash, ExpiresAt) VALUES (@userId, @tokenHash, @expiresAt)"
+      );
 
-      if (transporter) {
-        await transporter.sendMail({
-          from,
-          to: email,
-          subject: "ResQ - Jelszó visszaállítás",
-          text: `Jelszó visszaállításhoz nyisd meg ezt a linket: ${resetUrl}\n\nA token 30 percig érvényes.`,
-          html: `<p>Jelszó visszaállításhoz kattints ide:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>A token 30 percig érvényes.</p>`
-        });
-      } else {
-        console.warn("SMTP not configured, forgot-password email was not sent.");
-      }
+    const resetUrl = `${getResetBaseUrl(req)}/auth.html?mode=forgot&token=${encodeURIComponent(resetToken)}`;
+    const from = process.env.MAIL_FROM || process.env.SMTP_USER || "no-reply@resq.local";
+    const transporter = createSmtpTransport();
 
-      if (process.env.NODE_ENV !== "production") {
-        return res.json({ ok: true, resetToken });
-      }
+    if (transporter) {
+      await transporter.sendMail({
+        from,
+        to: email,
+        subject: "ResQ - Jelszo visszaallitas",
+        text: `Jelszo visszaallitashoz nyisd meg ezt a linket: ${resetUrl}\n\nA token 30 percig ervenyes.`,
+        html: `<p>Jelszo visszaallitashoz kattints ide:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>A token 30 percig ervenyes.</p>`
+      });
+    } else {
+      console.warn("SMTP not configured, forgot-password email was not sent.");
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      return res.json({ ok: true, resetToken });
     }
 
     return res.json({ ok: true });
@@ -264,7 +264,6 @@ router.post("/forgot-password", async (req, res) => {
     return res.status(500).json({ error: "Server error" });
   }
 });
-
 router.post("/reset-password", async (req, res) => {
   const { token, newPassword } = req.body || {};
   if (!token || !newPassword) {

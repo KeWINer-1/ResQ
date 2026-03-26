@@ -28,11 +28,21 @@
     <div class="form-card auth-card">
       <section id="login-panel">
         <h2>Belépés</h2>
-        <form id="login-form">
+        <div id="login-alert" class="alert-box" style="display: none;"></div>
+        <form id="login-form" novalidate>
           <label>Email</label>
           <input type="email" name="email" required />
           <label>Jelszó</label>
-          <input type="password" name="password" required />
+          <div class="password-field">
+            <input type="password" name="password" required />
+            <button
+              type="button"
+              class="password-toggle"
+              data-toggle-password
+              aria-label="Jelszó megjelenítése"
+              title="Jelszó megjelenítése"
+            >👁</button>
+          </div>
           <button class="btn" type="submit">Belépés</button>
         </form>
         <p class="notice auth-links-line">
@@ -47,11 +57,21 @@
 
       <section id="register-panel" style="display: none;">
         <h2>Regisztráció</h2>
-        <form id="register-form">
+        <div id="register-alert" class="alert-box" style="display: none;"></div>
+        <form id="register-form" novalidate>
         <label>Email</label>
         <input type="email" name="email" required />
         <label>Jelszó</label>
-        <input type="password" name="password" required />
+        <div class="password-field">
+          <input type="password" name="password" required />
+          <button
+            type="button"
+            class="password-toggle"
+            data-toggle-password
+            aria-label="Jelszó megjelenítése"
+            title="Jelszó megjelenítése"
+          >👁</button>
+        </div>
         <label>Szerepkör</label>
         <select name="role" id="role-select" required>
           <option value="User">Felhasználó</option>
@@ -65,7 +85,7 @@
           <input type="text" name="phone" />
           <div class="split">
             <div>
-              <label>Szolgaltatasi körzet (km)</label>
+              <label>Szolgáltatási körzet (km)</label>
               <input type="number" name="serviceRadiusKm" min="1" />
             </div>
             <div>
@@ -73,7 +93,7 @@
               <input type="number" name="baseFee" min="0" />
             </div>
           </div>
-          <label>Km díj</label>
+          <label>Km-díj</label>
           <input type="number" name="perKmFee" min="0" />
           <label>Képességek (vesszővel elválasztva)</label>
           <input type="text" name="capabilities" placeholder="csorlo, treler, autopalya" />
@@ -90,7 +110,8 @@
 
       <section id="forgot-panel" style="display: none;">
         <h2>Elfelejtett jelszó</h2>
-        <form id="forgot-form">
+        <div id="forgot-alert" class="alert-box" style="display: none;"></div>
+        <form id="forgot-form" novalidate>
           <label>Email</label>
           <input type="email" name="email" required />
           <button class="btn" type="submit">Jelszó visszaállítás indítása</button>
@@ -100,11 +121,21 @@
         </p>
         <p class="notice" id="forgot-message"></p>
 
-        <form id="reset-form" style="display: none;">
-          <label>Reset token</label>
+        <div id="reset-alert" class="alert-box" style="display: none;"></div>
+        <form id="reset-form" style="display: none;" novalidate>
+          <label>Visszaállító token</label>
           <input type="text" name="token" required />
           <label>Új jelszó</label>
-          <input type="password" name="newPassword" required minlength="6" />
+          <div class="password-field">
+            <input type="password" name="newPassword" required minlength="6" />
+            <button
+              type="button"
+              class="password-toggle"
+              data-toggle-password
+              aria-label="Jelszó megjelenítése"
+              title="Jelszó megjelenítése"
+            >👁</button>
+          </div>
           <button class="btn" type="submit">Új jelszó mentése</button>
         </form>
         <p class="notice" id="reset-message"></p>

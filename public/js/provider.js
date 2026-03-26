@@ -268,7 +268,8 @@ async function loadProfile() {
 
 function updateStatus() {
   onlinePill.textContent = isOnline ? "Online" : "Offline";
-  onlinePill.style.background = isOnline ? "#fbe7d5" : "#ececec";
+  onlinePill.classList.toggle("is-online", isOnline);
+  onlinePill.classList.toggle("is-offline", !isOnline);
   statusEl.textContent = isOnline ? "Elérhető vagy." : "Offline módban vagy.";
 }
 
