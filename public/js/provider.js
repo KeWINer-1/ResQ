@@ -11,6 +11,7 @@ const providerChatBox = document.getElementById("provider-chat-box");
 const providerChatInput = document.getElementById("provider-chat-input");
 const providerChatSend = document.getElementById("provider-chat-send");
 const providerMapEl = document.getElementById("provider-map");
+const statusToast = document.getElementById("status-toast");
 
 const currentRole = getUserRole();
 if (!currentRole) {
@@ -37,6 +38,36 @@ let manualLocationOverride = false;
 const manualProviderLocationStorageKey = "resq_manual_provider_location";
 const activeProviderRequestStorageKey = "resq_provider_active_request";
 let requestsPollTimer = null;
+let lastProviderJobStatus = null;
+let lastProviderRequestId = null;
+
+function jobStatusLabel(status) {
+  if (!status) return null;
+  const labels = {
+    accepted: "Elfogadva",
+    enroute: "Uton van",
+    arrived: "Megerkezett",
+    completed: "Kesz",
+    cancelled: "Lemondva"
+  };
+  return labels[status] || status;
+}
+
+function showToast(message) {
+  if (!statusToast) return;
+  statusToast.textContent = message;
+  statusToast.classList.add("show");
+  setTimeout(() => {
+    statusToast.classList.remove("show");
+  }, 3500);
+}
+
+function notifyProvider(title, body) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    new Notification(title, { body });
+  }
+}
 
 function setLocationMessage(message) {
   if (!locationMessageEl) return;
@@ -128,6 +159,10 @@ function shouldSendLocation(lat, lng) {
   if (distanceKm > 0.05) return true;
   if (now - lastLocationSentAt > 15000) return true;
   return false;
+}
+
+function getRequestStatusValue(req) {
+  return req?.JobStatus || req?.Status || null;
 }
 
 function clearRequestMarkers() {
@@ -354,13 +389,18 @@ function startRequestsPolling() {
   if (requestsPollTimer) return;
   loadRequests();
   requestsPollTimer = setInterval(loadRequests, 5000);
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
 }
 
 async function loadRequests() {
   try {
     const data = await apiFetch("/api/requests/provider");
     const terminalStatuses = new Set(["completed", "cancelled"]);
-    const visibleRequests = data.filter((req) => !terminalStatuses.has(req.JobStatus));
+    const visibleRequests = data.filter(
+      (req) => !terminalStatuses.has(getRequestStatusValue(req))
+    );
     if (!map) {
       initMap(fallbackLocation.lat, fallbackLocation.lng);
     }
@@ -375,6 +415,8 @@ async function loadRequests() {
       saveActiveProviderRequest(null);
       activeChatRequestId = null;
       stopChatPolling();
+      lastProviderJobStatus = null;
+      lastProviderRequestId = null;
       if (providerChatBox) {
         providerChatBox.innerHTML = "";
       }
@@ -391,15 +433,19 @@ async function loadRequests() {
         visibleRequests.find((req) => String(req.Id) === String(savedRequestId))) ||
       null;
     const preferredRequest =
-      savedRequest && !terminalStatuses.has(savedRequest.JobStatus) ? savedRequest : null;
+      savedRequest && !terminalStatuses.has(getRequestStatusValue(savedRequest))
+        ? savedRequest
+        : null;
     const openRequest =
       visibleRequests.find(
-        (req) => !terminalStatuses.has(req.JobStatus) && !activeStatuses.has(req.JobStatus)
+        (req) =>
+          !terminalStatuses.has(getRequestStatusValue(req)) &&
+          !activeStatuses.has(getRequestStatusValue(req))
       ) ||
       null;
     const activeRequest =
       preferredRequest ||
-      visibleRequests.find((req) => activeStatuses.has(req.JobStatus)) ||
+      visibleRequests.find((req) => activeStatuses.has(getRequestStatusValue(req))) ||
       openRequest ||
       visibleRequests.slice().sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt))[0];
 
@@ -411,7 +457,7 @@ async function loadRequests() {
     }
 
     const req = activeRequest;
-    const jobStatus = req.JobStatus || null;
+    const jobStatus = getRequestStatusValue(req);
     const isDone = jobStatus === "completed";
     const isCancelled = jobStatus === "cancelled";
     if (isDone || isCancelled) {
@@ -421,6 +467,18 @@ async function loadRequests() {
     }
     const job = jobStatus ? ` | ${jobStatus}` : "";
     const isSelected = String(req.Id) === String(selectedRequestId);
+
+    if (String(req.Id) !== String(lastProviderRequestId)) {
+      lastProviderJobStatus = null;
+      lastProviderRequestId = req.Id;
+    }
+
+    if (jobStatus && jobStatus !== lastProviderJobStatus) {
+      const label = jobStatusLabel(jobStatus) || jobStatus;
+      showToast(`Statusz: ${label}`);
+      notifyProvider("Keres statusz frissult", label);
+      lastProviderJobStatus = jobStatus;
+    }
 
     const actions =
       isDone || isCancelled
