@@ -24,10 +24,15 @@
       <a class="brand" href="index.html">
         <img src="src/logo.png" alt="resq logo" />
       </a>
+      <button class="nav-toggle" type="button" aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
       <nav class="nav-links">
         <a href="index.html">Kezdőlap</a>
         <a href="map.html">Térkép</a>
-        <a href="support.html">Üzenet adminnak</a>
+        <a href="support.html" data-support-link>Üzenet adminnak</a>
         <a href="auth.html" data-auth-link>Belépés</a>
       </nav>
     </header>
@@ -74,6 +79,7 @@
       </aside>
       <div id="provider-map" class="map"></div>
     </section>
+    <div id="status-toast" class="toast"></div>
 
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"

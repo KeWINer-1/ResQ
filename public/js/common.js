@@ -69,6 +69,12 @@ async function apiFetch(path, options = {}) {
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({ error: "Request failed" }));
+    if (response.status === 401 || response.status === 403) {
+      clearToken();
+      if (!window.location.pathname.endsWith("/auth.html")) {
+        window.location.href = "/auth.html";
+      }
+    }
     throw new Error(data.error || "Request failed");
   }
 
@@ -106,8 +112,56 @@ async function getMyProfile() {
 function getDisplayName(profile) {
   if (!profile) return "Fiokom";
   if (profile.provider?.name) return profile.provider.name;
+  if (profile.name) return profile.name;
   if (profile.email) return profile.email;
   return "Fiokom";
+}
+
+function updateRoleNav(role) {
+  const providerLinks = document.querySelectorAll("[data-provider-link]");
+  const supportLinks = document.querySelectorAll("[data-support-link]");
+
+  if (role === "User") {
+    providerLinks.forEach((link) => {
+      link.style.display = "none";
+    });
+    supportLinks.forEach((link) => {
+      link.textContent = "Ugyfelszolgalat";
+    });
+    return;
+  }
+
+  providerLinks.forEach((link) => {
+    link.style.display = "";
+  });
+  supportLinks.forEach((link) => {
+    link.textContent = "Uzenet adminnak";
+  });
+}
+
+function initNavToggle() {
+  const header = document.querySelector("header");
+  const toggle = document.querySelector(".nav-toggle");
+  const nav = document.querySelector(".nav-links");
+  if (!header || !toggle || !nav) return;
+
+  toggle.addEventListener("click", () => {
+    header.classList.toggle("nav-open");
+  });
+
+  nav.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => {
+      header.classList.remove("nav-open");
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!header.classList.contains("nav-open")) return;
+    if (event.target.closest(".nav-toggle") || event.target.closest(".nav-links")) {
+      return;
+    }
+    header.classList.remove("nav-open");
+  });
 }
 
 function logout() {
@@ -125,6 +179,7 @@ async function updateAuthLinks() {
       link.textContent = "Belepes";
       link.setAttribute("href", "/auth.html");
     });
+    updateRoleNav(null);
     return;
   }
 
@@ -138,15 +193,18 @@ async function updateAuthLinks() {
       link.setAttribute("href", target);
       link.classList.add("account-link");
     });
+    updateRoleNav(profile?.role || null);
   } catch (err) {
     clearToken();
     authLinks.forEach((link) => {
       link.textContent = "Belepes";
       link.setAttribute("href", "/auth.html");
     });
+    updateRoleNav(null);
   }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   updateAuthLinks();
+  initNavToggle();
 });
