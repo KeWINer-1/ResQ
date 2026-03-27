@@ -76,7 +76,14 @@ loginForm.addEventListener("submit", async (event) => {
     setMessage(loginMessage, "Sikeres belépés.");
     window.location.href = getHomePathForRole(data.role);
   } catch (err) {
-    setMessage(loginMessage, err.message);
+    let message = err.message || "Nem sikerült a belépés.";
+    if (
+      message === "Failed to fetch" ||
+      message === "NetworkError when attempting to fetch resource."
+    ) {
+      message = `Nem érem el a szervert (${API_BASE}). Indítsd el a backendet (5000-es port) és próbáld újra.`;
+    }
+    setMessage(loginMessage, message);
   }
 });
 
