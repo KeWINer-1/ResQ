@@ -1,0 +1,91 @@
+﻿<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>resq - Autómentő mód</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" href="src/favicon.ico" />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="app-theme">
+    <header>
+      <a class="brand" href="map.html">
+        <img src="src/logo.png" alt="resq logo" />
+      </a>
+      <button class="nav-toggle" type="button" aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="nav-links">
+        <a href="map.html">Térkép</a>
+        <a href="automento.html" data-provider-link>Autómentő mód</a>
+        <a href="support.html" data-support-link>Ügyfélszolgálat</a>
+        <a href="rolunk.html">Rólunk</a>
+        <a href="auth.html" data-auth-link>Belépés</a>
+      </nav>
+    </header>
+
+    <main class="section">
+      <div class="form-card" style="max-width: 900px;">
+        <h2>Autómentő mód</h2>
+        <p class="notice" id="automento-message"></p>
+
+        <div class="card" style="margin-top: 10px;">
+      <h3>Mentősi statisztika</h3>
+          <div class="request-metrics">
+            <div class="metric">
+          <div class="metric-label">Értékelés</div>
+              <div class="metric-value" id="provider-avg-rating">-</div>
+              <div class="avg-stars-row" style="margin-top: 4px;">
+                <div class="avg-stars" aria-hidden="true">
+                  <span class="avg-stars-base">★★★★★</span>
+                  <span class="avg-stars-fill" id="provider-avg-stars-fill">★★★★★</span>
+                </div>
+              </div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Fuvarok</div>
+              <div class="metric-value" id="provider-trip-count">0</div>
+            </div>
+            <div class="metric">
+          <div class="metric-label">Összkereset</div>
+              <div class="metric-value" id="provider-total-earnings">0 Ft</div>
+            </div>
+          </div>
+          <button class="btn secondary" id="provider-ratings-toggle" type="button" style="margin-top: 10px;">
+          Értékelések részletei
+          </button>
+          <div id="provider-ratings-panel" style="display: none; margin-top: 10px;">
+        <div id="provider-ratings-list" class="notice">Még nincs értékelés.</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 16px;">
+          <h3>Beállítások</h3>
+          <label>Szolgaltatasi korzet (km)</label>
+          <input id="provider-service-radius" type="number" min="1" />
+          <label>Alapdij</label>
+          <input id="provider-base-fee" type="number" min="0" step="0.01" />
+          <label>Km-dij</label>
+          <input id="provider-per-km-fee" type="number" min="0" step="0.01" />
+          <label>Kepessegek (vesszovel elvalasztva)</label>
+          <input id="provider-capabilities" type="text" placeholder="csorlo,treler,autopalya" />
+          <div class="cta-row" style="margin-top: 10px;">
+            <button class="btn secondary" id="provider-settings-save" type="button">Mentés</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div id="status-toast" class="toast"></div>
+    <script src="js/common.js"></script>
+    <script src="js/automento.js"></script>
+  </body>
+</html>

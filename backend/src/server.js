@@ -24,16 +24,26 @@ const allowedOrigins = (process.env.CORS_ORIGIN || "*")
   .map((item) => item.trim())
   .filter(Boolean);
 
+function normalizeOrigin(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\/+$/, "")
+    .toLowerCase();
+}
+
+const allowedOriginSet = new Set(allowedOrigins.map(normalizeOrigin));
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes("*")) {
+      if (!origin || allowedOriginSet.has("*")) {
         return callback(null, true);
       }
-      if (allowedOrigins.includes(origin)) {
+      if (allowedOriginSet.has(normalizeOrigin(origin))) {
         return callback(null, true);
       }
-      return callback(new Error("CORS blocked"), false);
+      // Do not throw here, because that turns CORS mismatch into a 500 error.
+      return callback(null, false);
     }
   })
 );
@@ -61,11 +71,16 @@ app.use("/api/support", supportRoutes);
 app.use(express.static(publicDir));
 
 const pageRoutes = new Map([
-  ["/", "index.html"],
+  ["/", "map.html"],
   ["/auth", "auth.html"],
   ["/account", "account.html"],
   ["/map", "map.html"],
+  ["/rolunk", "rolunk.html"],
+  ["/about", "rolunk.html"],
   ["/provider", "provider.html"],
+  ["/automento", "automento.html"],
+  ["/ertekelesek", "ertekelesek.html"],
+  ["/ratings", "ertekelesek.html"],
   ["/support", "support.html"],
   ["/admin", "admin.html"],
   ["/admin/", "admin.html"]

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>resq - Üzenet az adminnak</title>
+    <title>resq - Értékelések</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -24,34 +24,41 @@
         <span></span>
       </button>
       <nav class="nav-links">
-        <a href="rolunk.html">Rólunk</a>
         <a href="map.html">Térkép</a>
-        <a href="provider.html" data-provider-link>Autómentő mód</a>
+        <a href="automento.html" data-provider-link>Autómentő mód</a>
         <a href="support.html" data-support-link>Ügyfélszolgálat</a>
+        <a href="rolunk.html">Rólunk</a>
         <a href="auth.html" data-auth-link>Belépés</a>
       </nav>
     </header>
 
-    <section class="section">
-      <div class="form-card">
-        <h2>Privát üzenet az adminnak</h2>
-        <p class="notice" id="support-message"></p>
+    <main class="section">
+      <div class="form-card" style="max-width: 900px;">
+      <h2>Értékelések</h2>
+        <p class="notice" id="ratings-message"></p>
 
-        <div id="support-chat" style="display: none;">
-          <div class="chat-box" id="support-messages"></div>
-          <div class="split" style="grid-template-columns: 1fr auto; margin-top: 12px;">
-            <div>
-              <input id="support-input" type="text" placeholder="Írj ide…" />
-            </div>
-            <div>
-              <button class="btn" id="support-send" type="button">Küldés</button>
+        <div class="card ratings-summary" id="ratings-summary" style="margin-top: 8px;">
+          <div>
+            <div class="notice">Atlag</div>
+            <div class="avg-stars-row">
+              <div class="avg-stars" aria-hidden="true">
+                <span class="avg-stars-base">★★★★★</span>
+                <span class="avg-stars-fill" id="avg-stars-fill">★★★★★</span>
+              </div>
+              <span class="avg-stars-value" id="avg-stars-value">-</span>
             </div>
           </div>
+          <div>
+          <div class="notice">Összes értékelés</div>
+            <div class="ratings-count" id="ratings-count">0 db</div>
+          </div>
         </div>
+
+        <div id="ratings-list" class="ratings-list" style="margin-top: 14px;"></div>
       </div>
-    </section>
+    </main>
 
     <script src="js/common.js"></script>
-    <script src="js/support.js"></script>
+    <script src="js/ertekelesek.js"></script>
   </body>
 </html>

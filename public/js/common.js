@@ -1,4 +1,4 @@
-const urlParams = new URLSearchParams(window.location.search);
+﻿const urlParams = new URLSearchParams(window.location.search);
 const apiBaseParam = urlParams.get("apiBase");
 if (apiBaseParam) {
   localStorage.setItem("apiBase", apiBaseParam);
@@ -69,13 +69,15 @@ async function apiFetch(path, options = {}) {
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({ error: "Request failed" }));
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       clearToken();
       if (!window.location.pathname.endsWith("/auth.html")) {
         window.location.href = "/auth.html";
       }
     }
-    throw new Error(data.error || "Request failed");
+    const err = new Error(data.error || "Request failed");
+    err.status = response.status;
+    throw err;
   }
 
   return response.json();
@@ -110,33 +112,145 @@ async function getMyProfile() {
 }
 
 function getDisplayName(profile) {
-  if (!profile) return "Fiokom";
+  if (!profile) return "Fiókom";
   if (profile.provider?.name) return profile.provider.name;
   if (profile.name) return profile.name;
   if (profile.email) return profile.email;
-  return "Fiokom";
+  return "Fiókom";
+}
+
+function navKeyForLink(link) {
+  if (!link) return "other";
+  if (link.hasAttribute("data-auth-link")) return "account";
+  if (link.hasAttribute("data-provider-link")) return "provider";
+  if (link.hasAttribute("data-support-link")) return "support";
+
+  const href = String(link.getAttribute("href") || "").toLowerCase();
+  if (href.endsWith("/map.html") || href === "map.html" || href.endsWith("/map")) {
+    return "map";
+  }
+  if (
+    href.endsWith("/rolunk.html") ||
+    href === "rolunk.html" ||
+    href.endsWith("/rolunk") ||
+    href.endsWith("/about")
+  ) {
+    return "about";
+  }
+  if (href.endsWith("/admin.html") || href === "admin.html" || href.endsWith("/admin")) {
+    return "admin";
+  }
+  if (
+    href.endsWith("/provider.html") ||
+    href === "provider.html" ||
+    href.endsWith("/provider") ||
+    href.endsWith("/automento.html") ||
+    href === "automento.html" ||
+    href.endsWith("/automento")
+  ) {
+    return "provider";
+  }
+  return "other";
+}
+
+function isHomeOrMapLink(link) {
+  const href = String(link?.getAttribute("href") || "").toLowerCase();
+  return (
+    href === "index.html" ||
+    href.endsWith("/index.html") ||
+    href === "/" ||
+    href.endsWith("/map.html") ||
+    href === "map.html" ||
+    href.endsWith("/map")
+  );
+}
+
+function applyFixedNavOrder(role) {
+  const orderByRole = {
+    Admin: ["support", "account"],
+    Provider: ["map", "provider", "support", "about", "account"],
+    User: ["map", "support", "about", "account"],
+    Guest: ["map", "support", "about", "account", "provider"]
+  };
+  const orderedKeys = orderByRole[role] || orderByRole.Guest;
+  const orderIndex = new Map(orderedKeys.map((key, idx) => [key, idx + 1]));
+
+  document.querySelectorAll(".nav-links a").forEach((link) => {
+    const key = navKeyForLink(link);
+    const order = orderIndex.get(key) || 99;
+    link.style.order = String(order);
+  });
 }
 
 function updateRoleNav(role) {
   const providerLinks = document.querySelectorAll("[data-provider-link]");
   const supportLinks = document.querySelectorAll("[data-support-link]");
+  const navLinks = document.querySelectorAll(".nav-links a");
+
+  navLinks.forEach((link) => {
+    if (!isHomeOrMapLink(link)) return;
+    link.textContent = "Térkép";
+    link.setAttribute("href", role === "Provider" ? "/provider.html" : "/map.html");
+  });
 
   if (role === "User") {
+    navLinks.forEach((link) => {
+      link.style.display = "";
+    });
     providerLinks.forEach((link) => {
       link.style.display = "none";
     });
     supportLinks.forEach((link) => {
-      link.textContent = "Ugyfelszolgalat";
+      link.textContent = "Ügyfélszolgálat";
+      link.setAttribute("href", "/support.html");
     });
+    applyFixedNavOrder("User");
     return;
   }
 
+  if (role === "Admin") {
+    navLinks.forEach((link) => {
+      const href = String(link.getAttribute("href") || "").toLowerCase();
+      const isAuth = link.hasAttribute("data-auth-link");
+      const isAdminSupport =
+        link.hasAttribute("data-support-link") ||
+        href.endsWith("/admin.html") ||
+        href === "admin.html" ||
+        href.endsWith("/admin");
+      if (isAdminSupport) {
+        link.textContent = "Segítségkérések";
+        link.setAttribute("href", "/admin.html");
+      }
+      link.style.display = isAuth || isAdminSupport ? "" : "none";
+    });
+    applyFixedNavOrder("Admin");
+    return;
+  }
+
+  if (role === "Provider") {
+    navLinks.forEach((link) => {
+      if (isHomeOrMapLink(link) || navKeyForLink(link) === "map") {
+        link.textContent = "Térkép";
+        link.setAttribute("href", "/provider.html");
+      }
+    });
+    providerLinks.forEach((link) => {
+      link.setAttribute("href", "/automento.html");
+      link.textContent = "Autómentő mód";
+    });
+  }
+
+  navLinks.forEach((link) => {
+    link.style.display = "";
+  });
   providerLinks.forEach((link) => {
     link.style.display = "";
   });
   supportLinks.forEach((link) => {
-    link.textContent = "Uzenet adminnak";
+    link.textContent = "Ügyfélszolgálat";
+    link.setAttribute("href", "/support.html");
   });
+  applyFixedNavOrder(role === "Provider" ? "Provider" : "Guest");
 }
 
 function initNavToggle() {
@@ -145,22 +259,73 @@ function initNavToggle() {
   const nav = document.querySelector(".nav-links");
   if (!header || !toggle || !nav) return;
 
+  let overlay = document.querySelector(".nav-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "nav-overlay";
+    document.body.appendChild(overlay);
+  }
+
+  const closeMenu = () => {
+    header.classList.remove("nav-open");
+    if (overlay) overlay.classList.remove("show");
+  };
+
   toggle.addEventListener("click", () => {
-    header.classList.toggle("nav-open");
+    const shouldOpen = !header.classList.contains("nav-open");
+    header.classList.toggle("nav-open", shouldOpen);
+    if (overlay) {
+      overlay.classList.toggle("show", shouldOpen);
+    }
   });
 
   nav.querySelectorAll("a").forEach((link) => {
     link.addEventListener("click", () => {
-      header.classList.remove("nav-open");
+      closeMenu();
     });
+  });
+
+  overlay.addEventListener("click", () => {
+    closeMenu();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenu();
+    }
   });
 
   document.addEventListener("click", (event) => {
     if (!header.classList.contains("nav-open")) return;
-    if (event.target.closest(".nav-toggle") || event.target.closest(".nav-links")) {
+    if (
+      event.target.closest(".nav-toggle") ||
+      event.target.closest(".nav-links") ||
+      event.target.closest(".nav-overlay")
+    ) {
       return;
     }
-    header.classList.remove("nav-open");
+    closeMenu();
+  });
+}
+
+function ensureAccountLinkAtEnd() {
+  const navs = document.querySelectorAll(".nav-links");
+  navs.forEach((nav) => {
+    const accountLink = nav.querySelector("[data-auth-link]");
+    if (!accountLink) return;
+    nav.appendChild(accountLink);
+  });
+}
+
+function ensureAboutBeforeAccount() {
+  const navs = document.querySelectorAll(".nav-links");
+  navs.forEach((nav) => {
+    const accountLink = nav.querySelector("[data-auth-link]");
+    if (!accountLink) return;
+    const links = Array.from(nav.querySelectorAll("a"));
+    const aboutLink = links.find((link) => navKeyForLink(link) === "about");
+    if (!aboutLink || aboutLink === accountLink) return;
+    nav.insertBefore(aboutLink, accountLink);
   });
 }
 
@@ -170,13 +335,14 @@ function logout() {
 }
 
 async function updateAuthLinks() {
+  ensureAccountLinkAtEnd();
   const authLinks = document.querySelectorAll("[data-auth-link]");
   if (authLinks.length === 0) return;
 
   const token = getToken();
   if (!token) {
     authLinks.forEach((link) => {
-      link.textContent = "Belepes";
+      link.textContent = "Belépés";
       link.setAttribute("href", "/auth.html");
     });
     updateRoleNav(null);
@@ -186,7 +352,7 @@ async function updateAuthLinks() {
   try {
     const profile = await getMyProfile();
     const name = getDisplayName(profile);
-    const target = profile?.role === "Admin" ? "/admin.html" : "/account.html";
+    const target = "/account.html";
 
     authLinks.forEach((link) => {
       link.textContent = name;
@@ -195,16 +361,27 @@ async function updateAuthLinks() {
     });
     updateRoleNav(profile?.role || null);
   } catch (err) {
-    clearToken();
+    if (err?.status === 401) {
+      clearToken();
+      authLinks.forEach((link) => {
+        link.textContent = "Belépés";
+        link.setAttribute("href", "/auth.html");
+      });
+      updateRoleNav(null);
+      return;
+    }
+
     authLinks.forEach((link) => {
-      link.textContent = "Belepes";
-      link.setAttribute("href", "/auth.html");
+      link.textContent = "Fiókom";
+      link.setAttribute("href", "/account.html");
+      link.classList.add("account-link");
     });
-    updateRoleNav(null);
   }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  ensureAccountLinkAtEnd();
+  ensureAboutBeforeAccount();
   updateAuthLinks();
   initNavToggle();
 });

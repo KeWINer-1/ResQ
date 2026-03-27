@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="hu">
   <head>
     <meta charset="UTF-8" />
@@ -15,7 +15,7 @@
   </head>
   <body class="app-theme">
     <header>
-      <a class="brand" href="index.html">
+      <a class="brand" href="map.html">
         <img src="src/logo.png" alt="resq logo" />
       </a>
       <button class="nav-toggle" type="button" aria-label="Menu">
@@ -24,34 +24,37 @@
         <span></span>
       </button>
       <nav class="nav-links">
-        <a href="index.html">Kezdolap</a>
-        <a href="admin.html">Admin</a>
-        <a href="auth.html" data-auth-link>Belepes</a>
+        <a href="rolunk.html">Rólunk</a>
+        <a href="admin.html">Segítségkérések</a>
+        <a href="auth.html" data-auth-link>Belépés</a>
       </nav>
     </header>
 
     <section class="section">
       <div class="map-layout" style="grid-template-columns: minmax(260px, 360px) 1fr;">
         <aside class="sidebar">
-          <h2>Beszelgetesek</h2>
+          <h2>Segítségkérések</h2>
           <p class="notice" id="admin-message"></p>
+          <div id="admin-filters" class="conversation-filters"></div>
           <div id="admin-conversations"></div>
         </aside>
         <div class="card" style="padding: 16px;">
-          <h3 id="admin-convo-title">Valassz beszelgetest</h3>
-          <div class="chat-box" id="admin-messages"></div>
-          <div class="split" style="grid-template-columns: 1fr auto; margin-top: 12px;">
-            <div>
-              <input id="admin-input" type="text" placeholder="Uzenet..." />
+          <h3 id="admin-convo-title">Válassz beszélgetést</h3>
+          <div id="admin-chat-panel" style="display: none;">
+            <div class="chat-box" id="admin-messages"></div>
+            <div class="split" style="grid-template-columns: 1fr auto; margin-top: 12px;">
+              <div>
+                <input id="admin-input" type="text" placeholder="Üzenet..." />
+              </div>
+              <div>
+                <button class="btn" id="admin-send" type="button">Kuldes</button>
+              </div>
             </div>
-            <div>
-              <button class="btn" id="admin-send" type="button">Kuldes</button>
+            <div class="cta-row" style="margin-top: 12px;">
+              <button class="btn secondary" id="admin-close" type="button">
+                Beszélgetés lezárása és törlése
+              </button>
             </div>
-          </div>
-          <div class="cta-row" style="margin-top: 12px;">
-            <button class="btn secondary" id="admin-close" type="button">
-              Beszelgetes lezarasa es torlese
-            </button>
           </div>
         </div>
       </div>
@@ -61,3 +64,4 @@
     <script src="js/admin.js"></script>
   </body>
 </html>
+

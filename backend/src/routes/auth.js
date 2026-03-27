@@ -235,6 +235,9 @@ router.post("/login", async (req, res) => {
     }
 
     const user = result.recordset[0];
+    if (!user.PasswordHash) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
     const match = await bcrypt.compare(password, user.PasswordHash);
     if (!match) {
       return res.status(401).json({ error: "Invalid credentials" });
@@ -248,6 +251,7 @@ router.post("/login", async (req, res) => {
 
     return res.json({ token, role: user.Role });
   } catch (err) {
+    console.error("Login failed:", err);
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -292,25 +296,32 @@ router.post("/forgot-password", async (req, res) => {
     const from = process.env.MAIL_FROM || process.env.SMTP_USER || "no-reply@resq.local";
     const transporter = createSmtpTransport();
 
+    let emailSent = false;
     if (transporter) {
-      await transporter.sendMail({
-        from,
-        to: email,
-        subject: "ResQ - Jelszo visszaallitas",
-        text: `Jelszo visszaallitashoz nyisd meg ezt a linket: ${resetUrl}\n\nA token 30 percig ervenyes.`,
-        html: `<p>Jelszo visszaallitashoz kattints ide:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>A token 30 percig ervenyes.</p>`
-      });
+      try {
+        await transporter.sendMail({
+          from,
+          to: email,
+          subject: "ResQ - Jelszo visszaallitas",
+          text: `Jelszo visszaallitashoz nyisd meg ezt a linket: ${resetUrl}\n\nA token 30 percig ervenyes.`,
+          html: `<p>Jelszo visszaallitashoz kattints ide:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>A token 30 percig ervenyes.</p>`
+        });
+        emailSent = true;
+      } catch (mailErr) {
+        console.error("Forgot-password email send failed:", mailErr);
+      }
     } else {
       console.warn("SMTP not configured, forgot-password email was not sent.");
     }
 
     if (process.env.NODE_ENV !== "production") {
-      return res.json({ ok: true, resetToken });
+      return res.json({ ok: true, resetToken, emailSent });
     }
 
     return res.json({ ok: true });
   } catch (err) {
-    return res.status(500).json({ error: "Server error" });
+    console.error("Forgot-password failed:", err);
+    return res.status(500).json({ error: "A jelszo-visszaallitas most nem elerheto." });
   }
 });
 router.post("/reset-password", async (req, res) => {

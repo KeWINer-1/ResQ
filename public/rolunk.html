@@ -1,0 +1,98 @@
+﻿<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>resq - Rólunk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" href="src/favicon.ico" />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="app-theme about-page">
+    <header>
+      <a class="brand" href="map.html">
+        <img src="src/logo.png" alt="resq logo" />
+      </a>
+      <button class="nav-toggle" type="button" aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="nav-links">
+        <a href="map.html">Térkép</a>
+        <a href="rolunk.html">Rólunk</a>
+        <a href="provider.html" data-provider-link>Autómentő mód</a>
+        <a href="support.html" data-support-link>Ügyfélszolgálat</a>
+        <a href="auth.html" data-auth-link>Belépés</a>
+      </nav>
+    </header>
+
+    <main class="section about-wrap">
+      <section class="about-hero">
+        <p class="about-kicker">ResQ projekt</p>
+        <h1>Gyors segítség autósoknak, valós idejű autómentő kapcsolattal.</h1>
+        <p class="notice">
+          A ResQ célja, hogy baj esetén pár kattintással elérhető legyen a megfelelő
+          autómentő. A felhasználók térképen láthatják a lehetőségeket, az
+          autómentők pedig saját kezelőfelületen kapják és követik a kéréseket.
+        </p>
+      </section>
+
+      <section class="about-grid">
+        <article class="about-card">
+          <h3>Miről szól a rendszer?</h3>
+          <p class="notice">
+            Egy közös platformról kezeli a mentés teljes folyamatát: keresés,
+            státuszkövetés, kommunikáció és felhasználói profilok.
+          </p>
+        </article>
+        <article class="about-card">
+          <h3>Kinek készült?</h3>
+          <p class="notice">
+            Autósoknak, akik gyors és átlátható segítséget keresnek, valamint
+            autómentőknek, akik hatékonyan szeretnék kezelni a bejövő mentéseket.
+          </p>
+        </article>
+        <article class="about-card">
+          <h3>Mit ad hozzá?</h3>
+          <p class="notice">
+            Térképes működést, online státuszokat, szerepkör alapú felületeket és
+            egyszerű, mobilbarát használatot.
+          </p>
+        </article>
+      </section>
+
+      <section class="about-contact">
+        <h2>Fejlesztői elérhetőségek</h2>
+        <div class="about-contact-grid">
+          <a
+            class="about-contact-card"
+            href="#"
+            data-copy-email="bozsanyi.kevin@ganziskola.hu"
+          >
+            <strong>Bozsányi Kevin</strong>
+            <span>bozsanyi.kevin@ganziskola.hu</span>
+          </a>
+          <a
+            class="about-contact-card"
+            href="#"
+            data-copy-email="seres.alex.achilles@ganziskola.hu"
+          >
+            <strong>Seres Alex Achilles</strong>
+            <span>seres.alex.achilles@ganziskola.hu</span>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <div id="copy-toast" class="copy-toast">Kimásolva a vágólapra</div>
+
+    <script src="js/common.js"></script>
+    <script src="js/rolunk.js"></script>
+  </body>
+</html>
