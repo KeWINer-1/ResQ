@@ -136,18 +136,22 @@ loginForm.addEventListener("submit", async (event) => {
     setMessage(loginMessage, "Sikeres bejelentkezés.");
     window.location.href = getHomePathForRole(data.role);
   } catch (err) {
-    const message = String(err.message || "");
-    if (message.toLowerCase().includes("account not found")) {
+    let message = String(err.message || "");
+    if (message === "Failed to fetch" || message === "NetworkError when attempting to fetch resource.") {
+      message = `Nem érem el a szervert (${API_BASE}). Indítsd el a backendet (5000-es port) és próbáld újra.`;
+    }
+    const lower = message.toLowerCase();
+    if (lower.includes("account not found")) {
       showAlert(loginAlert, "A fiókját nem találtuk. Ellenőrizd az email címet.");
       return;
     }
-    if (message.toLowerCase().includes("invalid credentials")) {
+    if (lower.includes("invalid credentials")) {
       showAlert(loginAlert, "Hibás jelszó.");
       return;
     }
     if (
-      message.toLowerCase().includes("server error") ||
-      message.toLowerCase().includes("request failed")
+      lower.includes("server error") ||
+      lower.includes("request failed")
     ) {
       showAlert(
         loginAlert,
