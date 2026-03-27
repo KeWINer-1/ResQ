@@ -1,4 +1,4 @@
-const loginForm = document.getElementById("login-form");
+﻿const loginForm = document.getElementById("login-form");
 const registerForm = document.getElementById("register-form");
 const forgotForm = document.getElementById("forgot-form");
 const resetForm = document.getElementById("reset-form");
@@ -145,7 +145,17 @@ loginForm.addEventListener("submit", async (event) => {
       showAlert(loginAlert, "Hibás jelszó.");
       return;
     }
-    setMessage(loginMessage, message);
+    if (
+      message.toLowerCase().includes("server error") ||
+      message.toLowerCase().includes("request failed")
+    ) {
+      showAlert(
+        loginAlert,
+        "A bejelentkezés most nem elérhető. Kérlek próbáld újra pár perc múlva."
+      );
+      return;
+    }
+    showAlert(loginAlert, message || "Váratlan hiba történt a bejelentkezésnél.");
   }
 });
 
@@ -202,7 +212,12 @@ registerForm.addEventListener("submit", async (event) => {
     setMessage(registerMessage, "Sikeres regisztráció.");
     window.location.href = getHomePathForRole(payload.role);
   } catch (err) {
-    setMessage(registerMessage, err.message);
+    const message = String(err.message || "");
+    if (message.toLowerCase().includes("email already registered")) {
+      showAlert(registerAlert, "Az email cím már foglalt.");
+      return;
+    }
+    setMessage(registerMessage, message);
   }
 });
 
@@ -251,7 +266,17 @@ forgotForm.addEventListener("submit", async (event) => {
       showAlert(forgotAlert, "Nincs ilyen email címhez tartozó fiók.");
       return;
     }
-    setMessage(forgotMessage, message);
+    if (
+      message.toLowerCase().includes("server error") ||
+      message.toLowerCase().includes("request failed")
+    ) {
+      showAlert(
+        forgotAlert,
+        "A jelszó-visszaállítás most nem elérhető. Kérlek próbáld újra később."
+      );
+      return;
+    }
+    showAlert(forgotAlert, message || "Nem sikerült elindítani a jelszó-visszaállítást.");
   }
 });
 

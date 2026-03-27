@@ -47,7 +47,7 @@ const userSeed = {
 };
 
 const adminSeed = {
-  email: "admin@resq.test",
+  email: "admin@test.hu",
   password: "Test123!",
   role: "Admin"
 };

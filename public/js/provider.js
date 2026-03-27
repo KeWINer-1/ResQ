@@ -1,4 +1,4 @@
-const statusEl = document.getElementById("provider-status");
+﻿const statusEl = document.getElementById("provider-status");
 const locationMessageEl = document.getElementById("provider-location-message");
 const onlinePill = document.getElementById("online-pill");
 const toggleBtn = document.getElementById("toggle-online");
@@ -12,6 +12,17 @@ const providerChatInput = document.getElementById("provider-chat-input");
 const providerChatSend = document.getElementById("provider-chat-send");
 const providerMapEl = document.getElementById("provider-map");
 const statusToast = document.getElementById("status-toast");
+const avgRatingEl = document.getElementById("provider-avg-rating");
+const tripCountEl = document.getElementById("provider-trip-count");
+const totalEarningsEl = document.getElementById("provider-total-earnings");
+const ratingsToggleBtn = document.getElementById("provider-ratings-toggle");
+const ratingsPanelEl = document.getElementById("provider-ratings-panel");
+const ratingsListEl = document.getElementById("provider-ratings-list");
+const settingsRadiusEl = document.getElementById("provider-service-radius");
+const settingsBaseFeeEl = document.getElementById("provider-base-fee");
+const settingsPerKmFeeEl = document.getElementById("provider-per-km-fee");
+const settingsCapabilitiesEl = document.getElementById("provider-capabilities");
+const settingsSaveBtn = document.getElementById("provider-settings-save");
 
 const currentRole = getUserRole();
 if (!currentRole) {
@@ -44,6 +55,7 @@ let lastProviderRequestId = null;
 function jobStatusLabel(status) {
   if (!status) return null;
   const labels = {
+    new: "Uj keres",
     accepted: "Elfogadva",
     enroute: "Uton van",
     arrived: "Megerkezett",
@@ -51,6 +63,14 @@ function jobStatusLabel(status) {
     cancelled: "Lemondva"
   };
   return labels[status] || status;
+}
+
+function problemTypeLabel(value) {
+  const key = String(value || "").toLowerCase();
+  if (key === "breakdown") return "Lerobbanas";
+  if (key === "flat_tire") return "Defekt";
+  if (key === "battery") return "Akkumulator hiba";
+  return value ? String(value) : "Ismeretlen";
 }
 
 function showToast(message) {
@@ -271,6 +291,14 @@ async function sendLocation(lat, lng) {
 async function loadProfile() {
   try {
     const profile = await apiFetch("/api/providers/me");
+    if (settingsRadiusEl) settingsRadiusEl.value = String(profile.ServiceRadiusKm ?? "");
+    if (settingsBaseFeeEl) settingsBaseFeeEl.value = String(profile.BaseFee ?? "");
+    if (settingsPerKmFeeEl) settingsPerKmFeeEl.value = String(profile.PerKmFee ?? "");
+    if (settingsCapabilitiesEl) {
+      settingsCapabilitiesEl.value = Array.isArray(profile.capabilities)
+        ? profile.capabilities.join(",")
+        : "";
+    }
     isOnline = profile.IsOnline === true || profile.IsOnline === 1;
     updateStatus();
     const savedManualLocation = loadManualProviderLocation();
@@ -465,7 +493,10 @@ async function loadRequests() {
     } else {
       saveActiveProviderRequest(req.Id);
     }
-    const job = jobStatus ? ` | ${jobStatus}` : "";
+    const statusText = jobStatusLabel(jobStatus) || jobStatusLabel(req.Status) || req.Status;
+    const requestType = problemTypeLabel(req.ProblemType);
+    const addressText = String(req.PickupAddress || "").trim();
+    const fallbackCoords = `${req.PickupLat}, ${req.PickupLng}`;
     const isSelected = String(req.Id) === String(selectedRequestId);
 
     if (String(req.Id) !== String(lastProviderRequestId)) {
@@ -495,10 +526,11 @@ async function loadRequests() {
           <button class="btn secondary" data-action="chat">Üzenet</button>
         </div>`;
 
-    requestList.innerHTML = `<div class="provider-card" data-request-id="${req.Id}" data-lat="${req.PickupLat}" data-lng="${req.PickupLng}" style="${isSelected ? "background:#fff3e6;border-radius:12px;padding:12px;" : ""}">
-        <strong>Kérés #${req.Id}</strong>
-        <div class="notice">${req.ProblemType || "ismeretlen"} | ${req.Status}${job}</div>
-        <div class="notice">${req.PickupLat}, ${req.PickupLng}</div>
+    requestList.innerHTML = `<div class="provider-card provider-request-card${isSelected ? " is-selected" : ""}" data-request-id="${req.Id}" data-lat="${req.PickupLat}" data-lng="${req.PickupLng}">
+        <strong>Keres #${req.Id}</strong>
+        <div class="notice">Tipus: ${requestType}</div>
+        <div class="notice">Statusz: ${statusText || "Ismeretlen"}</div>
+        <div class="notice">Cím: ${addressText || fallbackCoords}</div>
         ${actions}
       </div>`;
 
@@ -599,4 +631,86 @@ providerChatInput?.addEventListener("keydown", (event) => {
     event.preventDefault();
     sendChatMessage();
   }
+});
+
+function formatProviderCurrency(value) {
+  const n = Number(value || 0);
+  if (!Number.isFinite(n)) return "0 Ft";
+  return `${Math.round(n).toLocaleString("hu-HU")} Ft`;
+}
+
+function renderProviderRatings(items) {
+  if (!ratingsListEl) return;
+  if (!Array.isArray(items) || items.length === 0) {
+    ratingsListEl.innerHTML = "Még nincs értékelés.";
+    return;
+  }
+  ratingsListEl.innerHTML = items
+    .map((item) => {
+      const stars = Number(item.Stars || 0);
+      const clipped = Math.max(0, Math.min(5, stars));
+      const starsText = "★".repeat(clipped) + "☆".repeat(5 - clipped);
+      const comment = String(item.Comment || "").trim() || "Nincs szoveges velemeny.";
+      const dateText = item.CreatedAt ? new Date(item.CreatedAt).toLocaleDateString("hu-HU") : "";
+      return `<div class="provider-card"><strong>${starsText} (${stars}/5)</strong><div class="notice">${dateText}</div><div class="notice">${comment}</div></div>`;
+    })
+    .join("");
+}
+
+async function loadProviderInsightsPanel() {
+  try {
+    const [stats, ratings] = await Promise.all([
+      apiFetch("/api/providers/me/stats"),
+      apiFetch("/api/providers/me/ratings")
+    ]);
+    if (avgRatingEl) {
+      avgRatingEl.textContent =
+      stats?.avgStars == null ? "Még nincs értékelés" : `${Number(stats.avgStars).toFixed(1)} / 5`;
+    }
+    if (tripCountEl) {
+      tripCountEl.textContent = String(Number(stats?.completedTrips || 0));
+    }
+    if (totalEarningsEl) {
+      totalEarningsEl.textContent = formatProviderCurrency(stats?.totalEarnings || 0);
+    }
+    renderProviderRatings(ratings?.items || []);
+  } catch {
+    if (avgRatingEl) avgRatingEl.textContent = "Nincs adat";
+    if (tripCountEl) tripCountEl.textContent = "0";
+    if (totalEarningsEl) totalEarningsEl.textContent = "0 Ft";
+    renderProviderRatings([]);
+  }
+}
+
+async function saveProviderSettingsPanel() {
+  const serviceRadiusKm = Number.parseInt(settingsRadiusEl?.value || "", 10);
+  const baseFee = Number.parseFloat(settingsBaseFeeEl?.value || "");
+  const perKmFee = Number.parseFloat(settingsPerKmFeeEl?.value || "");
+  const capabilities = String(settingsCapabilitiesEl?.value || "")
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+
+  try {
+    await apiFetch("/api/providers/me/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ serviceRadiusKm, baseFee, perKmFee, capabilities })
+    });
+    showToast("Beállítások mentve.");
+    await loadProfile();
+    await loadProviderInsightsPanel();
+  } catch (err) {
+    setLocationMessage(err.message || "Nem sikerült menteni a beállításokat.");
+  }
+}
+
+ratingsToggleBtn?.addEventListener("click", () => {
+  if (!ratingsPanelEl) return;
+  const open = ratingsPanelEl.style.display !== "none";
+  ratingsPanelEl.style.display = open ? "none" : "block";
+});
+
+settingsSaveBtn?.addEventListener("click", () => {
+  saveProviderSettingsPanel();
 });

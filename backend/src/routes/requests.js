@@ -18,7 +18,15 @@ function sanitizeBody(body) {
 }
 
 router.post("/", authRequired, requireRole("User"), async (req, res) => {
-  const { pickupLat, pickupLng, pickupAddress, problemType, notes, selectedProviderId } =
+  const {
+    pickupLat,
+    pickupLng,
+    pickupAddress,
+    problemType,
+    notes,
+    selectedProviderId,
+    estimatedPrice
+  } =
     req.body || {};
 
   if (typeof pickupLat !== "number" || typeof pickupLng !== "number") {
@@ -65,7 +73,24 @@ router.post("/", authRequired, requireRole("User"), async (req, res) => {
         "INSERT INTO ServiceRequests (UserId, PickupLat, PickupLng, PickupAddress, ProblemType, Notes, SelectedProviderId, Status) OUTPUT INSERTED.Id VALUES (@userId, @pickupLat, @pickupLng, @pickupAddress, @problemType, @notes, @selectedProviderId, 'new')"
       );
 
-    return res.status(201).json({ id: result.recordset[0].Id });
+    const requestId = result.recordset[0].Id;
+    const safeEstimatedPrice = Number(estimatedPrice);
+    if (
+      selectedProviderId &&
+      Number.isFinite(safeEstimatedPrice) &&
+      safeEstimatedPrice >= 0
+    ) {
+      await pool
+        .request()
+        .input("requestId", sql.Int, requestId)
+        .input("providerId", sql.Int, selectedProviderId)
+        .input("offeredPrice", sql.Decimal(10, 2), safeEstimatedPrice)
+        .query(
+          "INSERT INTO Offers (RequestId, ProviderId, OfferedPrice, Status) VALUES (@requestId, @providerId, @offeredPrice, 'accepted')"
+        );
+    }
+
+    return res.status(201).json({ id: requestId });
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
   }

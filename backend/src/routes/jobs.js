@@ -96,6 +96,40 @@ router.post("/:id/rating", authRequired, requireRole("User"), async (req, res) =
 
   try {
     const pool = await getPool();
+    const jobResult = await pool
+      .request()
+      .input("jobId", sql.Int, id)
+      .input("userId", sql.Int, req.user.userId)
+      .query(
+        "SELECT TOP 1 j.Id, j.Status FROM Jobs j JOIN ServiceRequests r ON r.Id = j.RequestId WHERE j.Id = @jobId AND r.UserId = @userId"
+      );
+
+    if (jobResult.recordset.length === 0) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+
+    if (jobResult.recordset[0].Status !== "completed") {
+      return res.status(409).json({ error: "Rating only after completed rescue" });
+    }
+
+    const existing = await pool
+      .request()
+      .input("jobId", sql.Int, id)
+      .input("userId", sql.Int, req.user.userId)
+      .query(
+        "SELECT TOP 1 Id FROM Ratings WHERE JobId = @jobId AND UserId = @userId ORDER BY Id DESC"
+      );
+
+    if (existing.recordset.length > 0) {
+      await pool
+        .request()
+        .input("id", sql.Int, existing.recordset[0].Id)
+        .input("stars", sql.Int, stars)
+        .input("comment", sql.VarChar, comment || null)
+        .query("UPDATE Ratings SET Stars = @stars, Comment = @comment WHERE Id = @id");
+      return res.json({ ok: true, updated: true });
+    }
+
     await pool
       .request()
       .input("jobId", sql.Int, id)
@@ -108,6 +142,7 @@ router.post("/:id/rating", authRequired, requireRole("User"), async (req, res) =
 
     return res.status(201).json({ ok: true });
   } catch (err) {
+    console.error("Rating save failed:", err);
     return res.status(500).json({ error: "Server error" });
   }
 });

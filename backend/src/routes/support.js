@@ -115,15 +115,22 @@ router.post("/me/messages", authRequired, async (req, res) => {
 
 // Admin: list conversations
 router.get("/admin/conversations", authRequired, requireRole("Admin"), async (req, res) => {
-  const status = req.query.status === "closed" ? "closed" : "open";
+  const status = String(req.query.status || "").toLowerCase();
   try {
     const pool = await getPool();
-    const list = await pool
-      .request()
-      .input("status", sql.VarChar, status)
-      .query(
-        "SELECT c.Id, c.ParticipantUserId, c.Status, c.CreatedAt, c.UpdatedAt, u.Email AS ParticipantEmail, u.Role AS ParticipantRole, p.Name AS ParticipantProviderName, lastMsg.Body AS LastMessageBody, lastSender.Role AS LastSenderRole, lastMsg.CreatedAt AS LastMessageAt FROM SupportConversations c JOIN Users u ON u.Id = c.ParticipantUserId LEFT JOIN Providers p ON p.UserId = u.Id OUTER APPLY (SELECT TOP 1 m.Body, m.SenderUserId, m.CreatedAt FROM SupportMessages m WHERE m.ConversationId = c.Id ORDER BY m.CreatedAt DESC, m.Id DESC) lastMsg LEFT JOIN Users lastSender ON lastSender.Id = lastMsg.SenderUserId WHERE c.Status = @status ORDER BY c.UpdatedAt DESC"
+    let list;
+    if (status === "open" || status === "closed") {
+      list = await pool
+        .request()
+        .input("status", sql.VarChar, status)
+        .query(
+          "SELECT c.Id, c.ParticipantUserId, c.Status, c.CreatedAt, c.UpdatedAt, u.Email AS ParticipantEmail, u.Role AS ParticipantRole, p.Name AS ParticipantProviderName, lastMsg.Body AS LastMessageBody, lastSender.Role AS LastSenderRole, lastMsg.CreatedAt AS LastMessageAt FROM SupportConversations c JOIN Users u ON u.Id = c.ParticipantUserId LEFT JOIN Providers p ON p.UserId = u.Id OUTER APPLY (SELECT TOP 1 m.Body, m.SenderUserId, m.CreatedAt FROM SupportMessages m WHERE m.ConversationId = c.Id ORDER BY m.CreatedAt DESC, m.Id DESC) lastMsg LEFT JOIN Users lastSender ON lastSender.Id = lastMsg.SenderUserId WHERE c.Status = @status ORDER BY c.UpdatedAt DESC"
+        );
+    } else {
+      list = await pool.request().query(
+        "SELECT c.Id, c.ParticipantUserId, c.Status, c.CreatedAt, c.UpdatedAt, u.Email AS ParticipantEmail, u.Role AS ParticipantRole, p.Name AS ParticipantProviderName, lastMsg.Body AS LastMessageBody, lastSender.Role AS LastSenderRole, lastMsg.CreatedAt AS LastMessageAt FROM SupportConversations c JOIN Users u ON u.Id = c.ParticipantUserId LEFT JOIN Providers p ON p.UserId = u.Id OUTER APPLY (SELECT TOP 1 m.Body, m.SenderUserId, m.CreatedAt FROM SupportMessages m WHERE m.ConversationId = c.Id ORDER BY m.CreatedAt DESC, m.Id DESC) lastMsg LEFT JOIN Users lastSender ON lastSender.Id = lastMsg.SenderUserId ORDER BY c.UpdatedAt DESC"
       );
+    }
     return res.json(
       list.recordset.map((row) => ({
         ...row,

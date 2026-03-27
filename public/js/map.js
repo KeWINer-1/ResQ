@@ -1,4 +1,4 @@
-const providersList = document.getElementById("providers-list");
+﻿const providersList = document.getElementById("providers-list");
 const radiusInput = document.getElementById("radius-input");
 const capabilitySelect = document.getElementById("capability-select");
 const refreshBtn = document.getElementById("refresh-btn");
@@ -62,6 +62,7 @@ const requestNotesSend = document.getElementById("request-notes-send");
 const mobileHelpCta = document.getElementById("mobile-home-cta");
 const mobileHelpBtn = document.getElementById("mobile-help-btn");
 const mobileSheetGrip = document.getElementById("mobile-sheet-grip");
+let mapCenterBtn = document.getElementById("map-center-btn");
 
 const currentRole = getUserRole();
 if (currentRole === "Provider") {
@@ -112,8 +113,66 @@ let tripUiManualExpand = false;
 let tripUiForceForm = false;
 let tripReadyState = false;
 let sheetExpanded = false;
+let selectedProviderNameTooltip = null;
 const manualLocationStorageKey = "resq_manual_user_location";
 const destinationStorageKey = "resq_destination_location";
+
+function ensureMapCenterButton() {
+  if (mapCenterBtn) return mapCenterBtn;
+  const mapWrap = document.querySelector(".map-wrap");
+  if (!mapWrap) return null;
+  const button = document.createElement("button");
+  button.className = "map-center-btn";
+  button.id = "map-center-btn";
+  button.type = "button";
+  button.setAttribute("aria-label", "Térkép kozepre igazitas");
+  button.innerHTML = "<span>➤</span>";
+  mapWrap.appendChild(button);
+  mapCenterBtn = button;
+  return mapCenterBtn;
+}
+
+function isUserCenteredOnMap() {
+  if (!map || !userLocation) return false;
+  const center = map.getCenter();
+  const distanceMeters = map.distance([userLocation.lat, userLocation.lng], center);
+  return distanceMeters <= 35;
+}
+
+function updateMapCenterButtonState() {
+  const button = ensureMapCenterButton();
+  if (!button) return;
+  button.classList.toggle("is-centered", isUserCenteredOnMap());
+}
+
+function centerMapToUser() {
+  if (!map || !userLocation) return;
+  map.setView([userLocation.lat, userLocation.lng], Math.max(map.getZoom(), 14));
+  updateMapCenterButtonState();
+}
+
+function clearSelectedProviderNameTooltip() {
+  if (selectedProviderNameTooltip && map) {
+    map.removeLayer(selectedProviderNameTooltip);
+  }
+  selectedProviderNameTooltip = null;
+}
+
+function showSelectedProviderNameTooltip(provider) {
+  clearSelectedProviderNameTooltip();
+  if (!map || !provider || !Number.isFinite(provider.lat) || !Number.isFinite(provider.lng)) {
+    return;
+  }
+  selectedProviderNameTooltip = L.tooltip({
+    permanent: true,
+    direction: "top",
+    offset: [0, -16],
+    className: "provider-name-tooltip"
+  })
+    .setLatLng([provider.lat, provider.lng])
+    .setContent(String(provider.name || "Autómentő"))
+    .addTo(map);
+}
 
 function showRequestStatus(message) {
   if (requestStatusCard && requestStatusText) {
@@ -325,7 +384,7 @@ function applyUserLocation(lat, lng, accuracy, zoom = 13) {
     gpsAccuracyEl.textContent = Number.isFinite(accuracy)
       ? "GPS alapjan szamolunk."
       : manualLocationOverride
-        ? "Kezzel megadott cimmel szamolunk."
+        ? "Kézzel megadott címmel számolunk."
         : "";
   }
   if (destinationCoords) {
@@ -344,7 +403,38 @@ function applyUserLocation(lat, lng, accuracy, zoom = 13) {
     updateRadiusCircle();
     loadProviders();
   }
+  updateMapCenterButtonState();
   updateTripUiState(false);
+}
+
+function getProviderRatingValue(provider) {
+  const candidates = [
+    provider?.rating,
+    provider?.avgRating,
+    provider?.averageRating,
+    provider?.ratingAvg
+  ];
+  for (const value of candidates) {
+    const num = Number(value);
+    if (Number.isFinite(num) && num >= 0) {
+      return num;
+    }
+  }
+  return null;
+}
+
+function ensureProviderRatingRow() {
+  if (!providerSelectCard) return null;
+  let valueEl = document.getElementById("provider-select-rating");
+  if (valueEl) return valueEl;
+  const priceRow = providerSelectPrice?.closest(".panel-row");
+  if (!priceRow || !priceRow.parentElement) return null;
+  const row = document.createElement("div");
+  row.className = "panel-row";
+  row.innerHTML = '<span class="panel-label">Értékelés</span><span class="panel-value" id="provider-select-rating">Nincs értékelés</span>';
+  priceRow.insertAdjacentElement("afterend", row);
+  valueEl = row.querySelector("#provider-select-rating");
+  return valueEl;
 }
 
 function estimateEtaMinutes(distanceKm) {
@@ -405,7 +495,7 @@ async function applyManualLocation() {
   const query = manualLocationInput?.value?.trim();
   if (!query) {
     if (manualLocationStatus) {
-      manualLocationStatus.textContent = "Adj meg egy cimet.";
+      manualLocationStatus.textContent = "Adj meg egy címet.";
     }
     return;
   }
@@ -429,11 +519,11 @@ async function applyManualLocation() {
     });
     showToast("Hely beallitva.");
     if (manualLocationStatus) {
-      manualLocationStatus.textContent = "Cim beallitva.";
+      manualLocationStatus.textContent = "Cím beallitva.";
     }
   } catch (err) {
     if (manualLocationStatus) {
-      manualLocationStatus.textContent = err.message || "Nem sikerult a helymeghatarozas.";
+      manualLocationStatus.textContent = err.message || "Nem sikerült a helymeghatározás.";
     }
   }
 }
@@ -484,9 +574,6 @@ function updateProviderMarker(lat, lng, name) {
     activeProviderMarker = L.marker([lat, lng], { icon: truckIcon }).addTo(map);
   } else {
     activeProviderMarker.setLatLng([lat, lng]);
-  }
-  if (name) {
-    activeProviderMarker.bindPopup(`${name} (autómentő)`);
   }
 }
 
@@ -687,14 +774,22 @@ function showProviderOverlay(provider) {
   selectedProvider = provider || null;
   if (!providerSelectCard) return;
   if (!provider) {
+    document.querySelectorAll(".ride-card").forEach((card) => {
+      card.classList.remove("selected");
+    });
+    clearSelectedProviderNameTooltip();
     providerSelectCard.style.display = "none";
     return;
   }
   document.querySelectorAll(".ride-card").forEach((card) => {
     card.classList.toggle("selected", card.dataset.id === String(provider.id));
   });
+  showSelectedProviderNameTooltip(provider);
+  if (map && Number.isFinite(provider.lat) && Number.isFinite(provider.lng)) {
+    map.setView([provider.lat, provider.lng], Math.max(map.getZoom(), 14));
+  }
   const rating =
-    provider.rating && provider.rating !== "N/A" ? String(provider.rating) : null;
+    getProviderRatingValue(provider);
   const vehicle = "Autómentő";
   if (providerSelectAvatar) {
     const initials = provider.name
@@ -711,7 +806,11 @@ function showProviderOverlay(provider) {
     providerSelectName.textContent = provider.name || "Autómentő";
   }
   if (providerSelectSub) {
-    providerSelectSub.textContent = rating ? `★ ${rating} · ${vehicle}` : vehicle;
+    providerSelectSub.textContent = Number.isFinite(rating) ? `★ ${rating.toFixed(1)} · ${vehicle}` : vehicle;
+  }
+  const providerRatingValue = ensureProviderRatingRow();
+  if (providerRatingValue) {
+    providerRatingValue.textContent = Number.isFinite(rating) ? `${rating.toFixed(1)} / 5` : "Nincs értékelés";
   }
   if (providerSelectStatus) {
     providerSelectStatus.textContent = "Online";
@@ -724,7 +823,7 @@ function showProviderOverlay(provider) {
     const estimate = hasTrip ? estimatePrice(tripDistanceKm, provider) : null;
     providerSelectPrice.textContent = estimate
       ? formatCurrency(estimate)
-      : "Adj meg celcimet";
+      : "Adj meg célcímet";
   }
   if (providerSelectTags) {
     const caps = provider.capabilities || [];
@@ -754,12 +853,12 @@ function updateRequestAvailability() {
   const canRequest = Number.isFinite(tripDistanceKm);
   if (providerSelectRequest) {
     providerSelectRequest.disabled = !canRequest;
-    providerSelectRequest.textContent = canRequest ? "Mentes kerese" : "Adj meg celcimet";
+    providerSelectRequest.textContent = canRequest ? "Mentés kérése" : "Adj meg célcímet";
   }
   if (providersHint) {
     providersHint.textContent = canRequest
       ? "Koppints a mentore a reszletekhez."
-      : "Add meg a celcimet, hogy kerest kuldhess.";
+      : "Add meg a célcímet, hogy kérést küldhess.";
   }
   updateTripUiState();
 }
@@ -992,7 +1091,7 @@ async function updateRequestStatusUI(data) {
     mapMessage.textContent = text;
     showRequestStatus(text);
   } else {
-    const text = "Keres elkuldve.";
+    const text = "Kérés elküldve.";
     mapMessage.textContent = text;
     showRequestStatus(text);
   }
@@ -1079,7 +1178,7 @@ async function updateRequestStatusUI(data) {
       : null;
     requestStatusPrice.textContent = estimate
       ? formatCurrency(estimate)
-      : "Adj meg celcimet";
+      : "Adj meg célcímet";
   }
 
   if (requestStatusUpdated) {
@@ -1129,7 +1228,7 @@ async function updateRequestStatusUI(data) {
     if (requestCancelHint) {
       requestCancelHint.style.display = cancelLocked ? "block" : "none";
       requestCancelHint.textContent = cancelLocked
-        ? "Lemondas csak ugyfelszolgalaton."
+        ? "Lemondás csak ügyfélszolgálaton."
         : "";
     }
   }
@@ -1241,6 +1340,9 @@ requestStatusHideBtn?.addEventListener("click", () => {
 });
 
 providerSelectClose?.addEventListener("click", () => {
+  if (map) {
+    map.setZoom(Math.max(map.getZoom() - 2, 11));
+  }
   showProviderOverlay(null);
 });
 
@@ -1248,7 +1350,7 @@ providerSelectRequest?.addEventListener("click", () => {
   if (selectedProvider) {
     requestHelpSafe(selectedProvider);
   } else {
-    mapMessage.textContent = "Valassz egy automentot.";
+    mapMessage.textContent = "Válassz egy autómentőt.";
   }
 });
 
@@ -1385,8 +1487,8 @@ destinationClearBtn?.addEventListener("click", () => {
 requestCancelBtn?.addEventListener("click", async () => {
   if (!activeRequestId) return;
   if (["enroute", "arrived"].includes(currentJobStatus)) {
-    mapMessage.textContent = "Lemondas csak ugyfelszolgalaton.";
-    showToast("Lemondas csak ugyfelszolgalaton.");
+    mapMessage.textContent = "Lemondás csak ügyfélszolgálaton.";
+    showToast("Lemondás csak ügyfélszolgálaton.");
     return;
   }
   if (!confirm("Biztosan lemondod a mentést?")) return;
@@ -1474,6 +1576,15 @@ function initMap(lat, lng) {
     iconAnchor: [17, 17]
   });
   userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(map).bindPopup("Te itt vagy");
+  map.on("moveend zoomend", () => {
+    updateMapCenterButtonState();
+  });
+  const button = ensureMapCenterButton();
+  if (button && !button.dataset.bound) {
+    button.addEventListener("click", centerMapToUser);
+    button.dataset.bound = "1";
+  }
+  updateMapCenterButtonState();
   updateRadiusCircle();
 }
 
@@ -1499,6 +1610,7 @@ function updateRadiusCircle() {
 function clearProviders() {
   providerMarkers.forEach((marker) => marker.remove());
   providerMarkers = [];
+  clearSelectedProviderNameTooltip();
   providersList.innerHTML = "";
 }
 
@@ -1573,7 +1685,7 @@ async function loadProviders() {
         iconAnchor: [17, 17]
       });
       const marker = L.marker([provider.lat, provider.lng], { icon: truckIcon }).addTo(map);
-      marker.bindPopup(`${provider.name} - ${provider.baseFee} Ft`);
+      marker.providerId = provider.id;
       marker.on("click", () => {
         showProviderOverlay(provider);
       });
@@ -1611,16 +1723,17 @@ async function requestHelp(provider) {
     return;
   }
   if (!Number.isFinite(tripDistanceKm)) {
-    mapMessage.textContent = "Adj meg celcimet a kereseshez.";
-    showToast("Adj meg celcimet a kereseshez.");
+    mapMessage.textContent = "Adj meg célcímet a kereseshez.";
+    showToast("Adj meg célcímet a kereseshez.");
     return;
   }
   const modalResult = await openRequestNotesModal();
   if (modalResult.cancelled) {
-    mapMessage.textContent = "Keres megszakitva.";
+    mapMessage.textContent = "Kérés megszakítva.";
     return;
   }
   const notes = modalResult.notes || "";
+  const estimatedPrice = estimatePrice(tripDistanceKm, provider);
   try {
     const created = await apiFetch("/api/requests", {
       method: "POST",
@@ -1630,7 +1743,8 @@ async function requestHelp(provider) {
         pickupLng: userLocation.lng,
         problemType: "breakdown",
         notes,
-        selectedProviderId: provider.id
+        selectedProviderId: provider.id,
+        estimatedPrice: Number.isFinite(estimatedPrice) ? estimatedPrice : null
       })
     });
     mapMessage.textContent = "Kérés elküldve. Várjuk az autómentő visszajelzését…";
@@ -1646,7 +1760,7 @@ async function requestHelpSafe(provider) {
   const providerId = Number(provider?.id);
   const role = getUserRole();
   if (!role) {
-    mapMessage.textContent = "A mentes keresehez jelentkezz be.";
+    mapMessage.textContent = "A mentés kéréséhez jelentkezz be.";
     return;
   }
   if (role !== "User") {
@@ -1654,7 +1768,7 @@ async function requestHelpSafe(provider) {
     return;
   }
   if (!Number.isInteger(providerId) || providerId <= 0) {
-    mapMessage.textContent = "Valassz egy automentot.";
+    mapMessage.textContent = "Válassz egy autómentőt.";
     return;
   }
   if (!userLocation) {
@@ -1662,25 +1776,26 @@ async function requestHelpSafe(provider) {
     return;
   }
   if (!Number.isFinite(tripDistanceKm)) {
-    mapMessage.textContent = "Adj meg celcimet a kereseshez.";
-    showToast("Adj meg celcimet a kereseshez.");
+    mapMessage.textContent = "Adj meg célcímet a kereseshez.";
+    showToast("Adj meg célcímet a kereseshez.");
     return;
   }
 
   const modalResult = await openRequestNotesModal();
   if (modalResult.cancelled) {
-    mapMessage.textContent = "Keres megszakitva.";
+    mapMessage.textContent = "Kérés megszakítva.";
     return;
   }
   const notes = modalResult.notes || "";
+  const estimatedPrice = estimatePrice(tripDistanceKm, provider);
 
   try {
     if (providerSelectRequest) {
       providerSelectRequest.disabled = true;
-      providerSelectRequest.textContent = "Kuldes...";
+      providerSelectRequest.textContent = "Küldés...";
     }
 
-    mapMessage.textContent = "Keres kuldese...";
+    mapMessage.textContent = "Kérés küldése...";
 
     const created = await apiFetch("/api/requests", {
       method: "POST",
@@ -1691,16 +1806,17 @@ async function requestHelpSafe(provider) {
         pickupAddress: manualLocationInput?.value?.trim() || null,
         problemType: "breakdown",
         notes,
-        selectedProviderId: providerId
+        selectedProviderId: providerId,
+        estimatedPrice: Number.isFinite(estimatedPrice) ? estimatedPrice : null
       })
     });
 
-    mapMessage.textContent = "Keres elkuldve. Varjuk az automentot.";
+    mapMessage.textContent = "Kérés elküldve. Várjuk az autómentőt.";
     if (created?.id) {
       startRequestPolling(created.id);
     }
   } catch (err) {
-    mapMessage.textContent = err.message || "Nem sikerult elkuldeni a kerest.";
+    mapMessage.textContent = err.message || "Nem sikerült elküldeni a kérést.";
   } finally {
     updateRequestAvailability();
   }
@@ -1782,7 +1898,7 @@ if (savedManualLocation) {
     manualLocationInput.value = savedManualLocation.query || `${savedManualLocation.lat}, ${savedManualLocation.lng}`;
   }
   if (manualLocationStatus) {
-    manualLocationStatus.textContent = "Mentett cim betoltve.";
+    manualLocationStatus.textContent = "Mentett cím betöltve.";
   }
   applyUserLocation(savedManualLocation.lat, savedManualLocation.lng, null);
 } else {

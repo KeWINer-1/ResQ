@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="hu">
   <head>
     <meta charset="UTF-8" />
@@ -15,7 +15,7 @@
   </head>
   <body class="app-theme">
     <header>
-      <a class="brand" href="index.html">
+      <a class="brand" href="map.html">
         <img src="src/logo.png" alt="resq logo" />
       </a>
       <button class="nav-toggle" type="button" aria-label="Menu">
@@ -24,10 +24,10 @@
         <span></span>
       </button>
       <nav class="nav-links">
-        <a href="index.html">Kezdőlap</a>
+        <a href="rolunk.html">Rólunk</a>
         <a href="map.html">Térkép</a>
         <a href="provider.html" data-provider-link>Autómentő mód</a>
-        <a href="support.html" data-support-link>Üzenet adminnak</a>
+        <a href="support.html" data-support-link>Ügyfélszolgálat</a>
         <a href="auth.html" data-auth-link>Belépés</a>
       </nav>
     </header>
@@ -35,24 +35,39 @@
     <section class="section">
       <div class="form-card">
         <h2>Fiókom</h2>
+        <div id="account-alert" class="alert-box" style="display: none;"></div>
         <p class="notice" id="account-message"></p>
 
         <div id="account-details" style="display: none;">
-          <label>Név</label>
-          <input id="account-name" type="text" />
+          <label>Nev</label>
+          <input id="account-name" type="text" disabled />
 
           <label>Email</label>
           <input id="account-email" type="text" disabled />
 
-          <label>Telefonszám</label>
-          <input id="account-phone" type="text" />
+          <label>Telefonszam</label>
+          <input id="account-phone" type="text" inputmode="tel" pattern="^\+?\d+$" disabled />
 
           <label>Fiók típusa</label>
           <input id="account-role" type="text" disabled />
 
           <div class="cta-row" style="margin-top: 18px;">
-            <button class="btn" id="account-save" type="button">Mentés</button>
-            <button class="btn secondary" id="logout-btn" type="button">Kijelentkezés</button>
+            <button class="btn" id="account-edit" type="button">Adataim szerkesztese</button>
+            <button class="btn" id="account-save" type="button" style="display: none;">Mentés</button>
+            <button class="btn secondary" id="account-cancel" type="button" style="display: none;">Megse</button>
+            <button class="btn secondary" id="logout-btn" type="button">Kijelentkezes</button>
+          </div>
+        </div>
+
+        <div id="admin-profile" style="display: none;">
+          <label>Email</label>
+          <input id="admin-email" type="text" disabled />
+
+          <label>Szerepkor</label>
+          <input id="admin-role" type="text" disabled />
+
+          <div class="cta-row" style="margin-top: 18px;">
+            <button class="btn secondary" id="admin-logout-btn" type="button">Kijelentkezes</button>
           </div>
         </div>
       </div>

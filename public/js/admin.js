@@ -1,6 +1,8 @@
-const messageEl = document.getElementById("admin-message");
+﻿const messageEl = document.getElementById("admin-message");
+const filtersEl = document.getElementById("admin-filters");
 const listEl = document.getElementById("admin-conversations");
 const titleEl = document.getElementById("admin-convo-title");
+const chatPanelEl = document.getElementById("admin-chat-panel");
 const messagesEl = document.getElementById("admin-messages");
 const inputEl = document.getElementById("admin-input");
 const sendBtn = document.getElementById("admin-send");
@@ -8,30 +10,8 @@ const closeBtn = document.getElementById("admin-close");
 
 let selectedConversationId = null;
 let pollTimer = null;
-
-function ensureLogoutButton() {
-  let logoutBtn = document.getElementById("admin-logout");
-  if (logoutBtn) return logoutBtn;
-
-  const sidebar = document.querySelector(".sidebar");
-  const anchor = listEl || messageEl;
-  if (!sidebar || !anchor) return null;
-
-  const row = document.createElement("div");
-  row.className = "cta-row";
-  row.style.marginTop = "12px";
-  row.style.marginBottom = "12px";
-
-  logoutBtn = document.createElement("button");
-  logoutBtn.id = "admin-logout";
-  logoutBtn.type = "button";
-  logoutBtn.className = "btn secondary";
-  logoutBtn.textContent = "Kijelentkezes";
-
-  row.appendChild(logoutBtn);
-  sidebar.insertBefore(row, anchor.nextSibling);
-  return logoutBtn;
-}
+let allConversations = [];
+let activeFilter = "all";
 
 function escapeHtml(value) {
   return String(value)
@@ -40,49 +20,98 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;");
 }
 
+function getRoleGroup(role) {
+  if (role === "Provider") return "provider";
+  return "user";
+}
+
+function renderFilters(items) {
+  if (!filtersEl) return;
+  const userCount = items.filter((item) => getRoleGroup(item.ParticipantRole) === "user").length;
+  const providerCount = items.filter((item) => getRoleGroup(item.ParticipantRole) === "provider").length;
+  const allCount = items.length;
+
+  const filters = [
+    { key: "all", label: "Osszes", count: allCount },
+    { key: "user", label: "Autos", count: userCount },
+    { key: "provider", label: "Autómentő", count: providerCount }
+  ];
+
+  filtersEl.innerHTML = filters
+    .map(
+      (filter) =>
+        `<button type="button" class="filter-chip${
+          activeFilter === filter.key ? " is-active" : ""
+        }" data-filter="${filter.key}">${filter.label} (${filter.count})</button>`
+    )
+    .join("");
+
+  filtersEl.querySelectorAll("[data-filter]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeFilter = btn.getAttribute("data-filter") || "all";
+      renderConversationList(allConversations);
+    });
+  });
+}
+
 function renderConversationList(items) {
-  if (!items || items.length === 0) {
-    listEl.innerHTML = "<p class=\"notice\">Nincs nyitott beszelgetes.</p>";
+  renderFilters(items);
+  const filtered = items.filter((conversation) => {
+    if (activeFilter === "all") return true;
+    return getRoleGroup(conversation.ParticipantRole) === activeFilter;
+  });
+
+  if (!filtered || filtered.length === 0) {
+    listEl.innerHTML = "<p class=\"notice\">Nincs beszélgetés ebben a csoportban.</p>";
     return;
   }
 
-  listEl.innerHTML = items
+  listEl.innerHTML = filtered
     .map((conversation) => {
       const displayName =
         conversation.ParticipantDisplayName || conversation.ParticipantEmail;
       const hasIncomingMessage =
         conversation.LastSenderRole && conversation.LastSenderRole !== "Admin";
       const statusLabel = hasIncomingMessage
-        ? `${displayName} uzenetet kuldott`
+        ? `${displayName} üzenetet küldött`
         : "Legutobbi aktivitasa";
       const preview = conversation.LastMessageBody
         ? escapeHtml(conversation.LastMessageBody)
-        : "Nincs meg uzenet.";
+        : "Nincs még üzenet.";
+      const statusText = conversation.Status === "closed" ? "Lezart" : "Nyitott";
+      const roleGroup = getRoleGroup(conversation.ParticipantRole);
+      const roleLabel = roleGroup === "provider" ? "Autómentő" : "Autos";
       const updatedAt = new Date(
         conversation.LastMessageAt || conversation.UpdatedAt
       ).toLocaleString();
 
       return `<div class="provider-card conversation-card${
         hasIncomingMessage ? " conversation-card-unread" : ""
-      }">
+      } conversation-role-${roleGroup}" role="button" tabindex="0" data-open="${conversation.Id}">
         <strong>${escapeHtml(displayName)}</strong>
-        <div class="notice">${escapeHtml(conversation.ParticipantEmail)} (${escapeHtml(conversation.ParticipantRole)})</div>
+        <div class="notice">${escapeHtml(conversation.ParticipantEmail)} (${escapeHtml(roleLabel)})</div>
         <div class="notice">${escapeHtml(statusLabel)} - ${updatedAt}</div>
+        <div class="notice">Allapot: ${escapeHtml(statusText)}</div>
         <div style="margin-top: 6px;">${preview}</div>
-        <div class="cta-row" style="margin-top: 10px;">
-          <button class="btn secondary" data-open="${conversation.Id}">Megnyit</button>
-        </div>
       </div>`;
     })
     .join("");
 
-  listEl.querySelectorAll("button[data-open]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = Number.parseInt(btn.getAttribute("data-open"), 10);
+  listEl.querySelectorAll("[data-open]").forEach((row) => {
+    const openSelected = () => {
+      const id = Number.parseInt(row.getAttribute("data-open"), 10);
       if (Number.isInteger(id)) {
         openConversation(id).catch((err) => {
           messageEl.textContent = err.message;
         });
+      }
+    };
+
+    row.addEventListener("click", openSelected);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openSelected();
       }
     });
   });
@@ -109,8 +138,8 @@ function renderMessages(conversation) {
 }
 
 async function loadConversations() {
-  const items = await apiFetch("/api/support/admin/conversations?status=open");
-  renderConversationList(items);
+  allConversations = await apiFetch("/api/support/admin/conversations");
+  renderConversationList(allConversations);
 }
 
 async function openConversation(id) {
@@ -118,7 +147,8 @@ async function openConversation(id) {
   const data = await apiFetch(`/api/support/admin/conversations/${id}`);
   const displayName =
     data.conversation.ParticipantDisplayName || data.conversation.ParticipantEmail;
-  titleEl.textContent = `Beszelgetes #${id} - ${displayName}`;
+  titleEl.textContent = `Beszélgetés #${id} - ${displayName}`;
+  if (chatPanelEl) chatPanelEl.style.display = "block";
   renderMessages(data.conversation);
 }
 
@@ -145,8 +175,9 @@ async function closeAndDelete() {
   });
 
   selectedConversationId = null;
-  titleEl.textContent = "Valassz beszelgetest";
-  messagesEl.innerHTML = "";
+  titleEl.textContent = "Válassz beszélgetést";
+  if (messagesEl) messagesEl.innerHTML = "";
+  if (chatPanelEl) chatPanelEl.style.display = "none";
   await loadConversations();
 }
 
@@ -183,7 +214,7 @@ closeBtn.addEventListener("click", () => {
 
 async function init() {
   if (!getToken()) {
-    messageEl.textContent = "Belepes szukseges.";
+    messageEl.textContent = "Belépés szukseges.";
     return;
   }
 
@@ -194,12 +225,8 @@ async function init() {
   }
 
   messageEl.textContent = "";
-  const logoutBtn = ensureLogoutButton();
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
-      logout();
-    });
-  }
+  titleEl.textContent = "Válassz beszélgetést";
+  if (chatPanelEl) chatPanelEl.style.display = "none";
   await loadConversations();
   startPolling();
 }
