@@ -6,8 +6,13 @@ if (apiBaseParam) {
 
 function getDefaultApiBase() {
   const { protocol, hostname, port, origin } = window.location;
+  const isFile = protocol === "file:";
   const isLocalHost =
     hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+
+  if (isFile || !hostname) {
+    return "http://localhost:5000";
+  }
 
   if (isLocalHost && port && port !== "5000") {
     return `${protocol}//${hostname}:5000`;
@@ -16,7 +21,21 @@ function getDefaultApiBase() {
   return origin;
 }
 
-const API_BASE = localStorage.getItem("apiBase") || getDefaultApiBase();
+function normalizeApiBase(value) {
+  if (!value || value === "null") {
+    localStorage.removeItem("apiBase");
+    return getDefaultApiBase();
+  }
+  if (value.startsWith("file:")) {
+    localStorage.removeItem("apiBase");
+    return getDefaultApiBase();
+  }
+  return value.replace(/\/$/, "");
+}
+
+const API_BASE = normalizeApiBase(
+  localStorage.getItem("apiBase") || getDefaultApiBase()
+);
 
 function getToken() {
   return localStorage.getItem("resq_token");
@@ -368,6 +387,17 @@ async function updateAuthLinks() {
         link.setAttribute("href", "/auth.html");
       });
       updateRoleNav(null);
+      return;
+    }
+    const token = getToken();
+    if (token) {
+      // Ha a profil lekérés hibázik (pl. backend nem elérhető), ne dobjuk ki a token-t.
+      authLinks.forEach((link) => {
+        link.textContent = "Fiokom";
+        link.setAttribute("href", "/account.html");
+        link.classList.add("account-link");
+      });
+      updateRoleNav(getUserRole());
       return;
     }
 
