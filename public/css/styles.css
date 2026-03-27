@@ -378,6 +378,24 @@ textarea {
   display: none !important;
 }
 
+.map-page.pending-request #provider-select-card,
+.map-page.pending-request .map-overlay {
+  display: none !important;
+}
+
+.map-page.pending-request #destination-status {
+  display: none !important;
+}
+
+.map-page.pending-request .user-position-card,
+.map-page.pending-request #destination-card,
+.map-page.pending-request #providers-list,
+.map-page.pending-request #providers-header,
+.map-page.pending-request #providers-hint,
+.map-page.pending-request #providers-filters {
+  display: none !important;
+}
+
 .map-layout {
   display: grid;
   grid-template-columns: minmax(320px, 420px) 1fr;
@@ -1135,6 +1153,10 @@ textarea {
 
   .map-page.trip-ready:not(.mobile-form-open) .user-position-card,
   .map-page.trip-ready:not(.mobile-form-open) #destination-card {
+    display: none;
+  }
+
+  .map-page.trip-ready:not(.mobile-form-open) #providers-filters {
     display: none;
   }
 

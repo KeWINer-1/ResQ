@@ -112,6 +112,8 @@ let tripUiManualExpand = false;
 let tripUiForceForm = false;
 let tripReadyState = false;
 let sheetExpanded = false;
+let mobileHomeOverride = false;
+let forceFreshStart = false;
 const manualLocationStorageKey = "resq_manual_user_location";
 const destinationStorageKey = "resq_destination_location";
 
@@ -576,6 +578,8 @@ function resetTripCalculation() {
   tripUiManualExpand = false;
   tripUiForceForm = false;
   tripReadyState = false;
+  mobileHomeOverride = false;
+  clearPendingRequestUI();
   updateRequestAvailability();
   updateTripUiState(false);
 }
@@ -785,9 +789,16 @@ function ensureMapReady() {
 }
 
 function setMobileFormOpen(open) {
+  if (open) {
+    tripReadyState = false;
+    document.body.classList.remove("trip-ready", "trip-ui-collapsed");
+  }
   document.body.classList.toggle("mobile-form-open", open);
-  document.body.classList.toggle("mobile-home", !open && !tripReadyState);
-  if (!open && !tripReadyState) {
+  document.body.classList.toggle(
+    "mobile-home",
+    !open && (!tripReadyState || mobileHomeOverride)
+  );
+  if (!open && (!tripReadyState || mobileHomeOverride)) {
     ensureMapReady();
   }
 }
@@ -807,7 +818,7 @@ function updateMobileHomeState() {
     document.body.classList.remove("mobile-form-open");
     return;
   }
-  if (tripReadyState) {
+  if (tripReadyState && !mobileHomeOverride) {
     document.body.classList.remove("mobile-home");
     return;
   }
@@ -816,6 +827,10 @@ function updateMobileHomeState() {
   if (!formOpen) {
     ensureMapReady();
   }
+}
+
+function isTripReadyActive() {
+  return Number.isFinite(tripDistanceKm) && !mobileHomeOverride;
 }
 
 function updateTripUiState(forceCollapse = false) {
@@ -833,8 +848,7 @@ function updateTripUiState(forceCollapse = false) {
     updateMobileHomeState();
     return;
   }
-  if (!Number.isFinite(tripDistanceKm)) {
-    tripUiManualExpand = false;
+  if (!isTripReadyActive()) {
     document.body.classList.remove("trip-ready");
     setTripUiCollapsed(false);
     tripReadyState = false;
@@ -843,6 +857,7 @@ function updateTripUiState(forceCollapse = false) {
     return;
   }
   document.body.classList.add("trip-ready");
+  document.body.classList.remove("mobile-form-open");
   if (!tripReadyState) {
     tripReadyState = true;
     ensureMapReady();
@@ -947,6 +962,152 @@ function showToast(message) {
   }, 4000);
 }
 
+function clearPendingRequestUI() {
+  document.body.classList.remove("pending-request");
+  if (requestStatusCard) {
+    requestStatusCard.classList.remove("is-pending");
+  }
+}
+
+function returnToMobileHome() {
+  if (window.matchMedia("(max-width: 900px)").matches) {
+    tripUiForceForm = false;
+    tripUiManualExpand = false;
+    tripReadyState = false;
+    mobileHomeOverride = false;
+    setSheetExpanded(false);
+    document.body.classList.remove(
+      "trip-ready",
+      "trip-ui-collapsed",
+      "pending-request",
+      "sheet-expanded",
+      "mobile-form-open"
+    );
+    document.body.classList.add("mobile-home");
+    if (sidebarEl) {
+      sidebarEl.scrollTo({ top: 0 });
+    }
+    updateTripUiState(false);
+    updateMobileHomeState();
+  }
+}
+
+function resetRequestView() {
+  activeRequestId = null;
+  lastJobStatus = null;
+  lastRequestStatus = null;
+  activeJobId = null;
+  currentJobStatus = null;
+  rideFocusActive = false;
+  clearPendingRequestUI();
+  setRideFocusMode(false);
+  clearActiveRouteLine();
+  if (activeProviderMarker) {
+    activeProviderMarker.remove();
+    activeProviderMarker = null;
+  }
+  if (requestStatusCard) {
+    requestStatusCard.style.display = "none";
+  }
+  if (requestPollTimer) {
+    clearInterval(requestPollTimer);
+    requestPollTimer = null;
+  }
+  try {
+    localStorage.removeItem("resq_active_request");
+  } catch {}
+}
+
+function clearStoredState() {
+  try {
+    localStorage.removeItem("resq_active_request");
+    localStorage.removeItem("resq_destination_location");
+    localStorage.removeItem("resq_manual_user_location");
+  } catch {}
+}
+
+function hardResetToInitial() {
+  clearStoredState();
+  try {
+    localStorage.removeItem("resq_profile");
+    localStorage.removeItem("resq_profile_ts");
+  } catch {}
+  window.location.replace("/map.html");
+}
+
+function resetToInitialFlow() {
+  resetRequestView();
+  resetTripCalculation();
+  clearManualLocation();
+  manualLocationOverride = false;
+  if (manualLocationInput) {
+    manualLocationInput.value = "";
+  }
+  if (manualLocationStatus) {
+    manualLocationStatus.textContent = "";
+  }
+  if (destinationInput) {
+    destinationInput.value = "";
+  }
+  tripUiForceForm = false;
+  tripUiManualExpand = false;
+  tripReadyState = false;
+  mobileHomeOverride = false;
+  selectedProvider = null;
+  showProviderOverlay(null);
+  document.body.classList.remove(
+    "trip-ready",
+    "trip-ui-collapsed",
+    "pending-request",
+    "sheet-expanded",
+    "mobile-form-open"
+  );
+  document.body.classList.add("mobile-home");
+  setSheetExpanded(false);
+  setMobileFormOpen(false);
+  if (providersList) {
+    providersList.innerHTML = "";
+  }
+  clearStoredState();
+  locateUser();
+  updateRequestAvailability();
+  updateTripUiState(false);
+  updateMobileHomeState();
+}
+
+function prepareFreshStart() {
+  resetRequestView();
+  resetTripCalculation();
+  clearManualLocation();
+  manualLocationOverride = false;
+  if (manualLocationInput) {
+    manualLocationInput.value = "";
+  }
+  if (manualLocationStatus) {
+    manualLocationStatus.textContent = "";
+  }
+  tripUiForceForm = false;
+  tripUiManualExpand = false;
+  tripReadyState = false;
+  mobileHomeOverride = false;
+  selectedProvider = null;
+  showProviderOverlay(null);
+  document.body.classList.remove(
+    "trip-ready",
+    "trip-ui-collapsed",
+    "pending-request",
+    "sheet-expanded"
+  );
+  setSheetExpanded(false);
+  if (providersList) {
+    providersList.innerHTML = "";
+  }
+  updateRequestAvailability();
+  updateTripUiState(false);
+  updateMobileHomeState();
+}
+
+
 function openRequestNotesModal() {
   if (!requestNotesModal || !requestNotesInput) {
     return Promise.resolve({ cancelled: false, notes: "" });
@@ -1002,6 +1163,7 @@ async function updateRequestStatusUI(data) {
   }
 
   const isPending = requestStatus === "new" && !jobStatus;
+  document.body.classList.toggle("pending-request", isPending);
   if (requestStatusCard) {
     requestStatusCard.classList.toggle("is-pending", isPending);
   }
@@ -1015,6 +1177,9 @@ async function updateRequestStatusUI(data) {
     tripUiForceForm = false;
     setMobileFormOpen(false);
     updateTripUiState(true);
+    if (providerSelectCard) {
+      providerSelectCard.style.display = "none";
+    }
   }
 
   updateTimeline(statusForTimeline);
@@ -1140,7 +1305,7 @@ async function updateRequestStatusUI(data) {
         : "none";
   }
 
-  const canChat = Boolean(provider?.id);
+  const canChat = Boolean(activeRequestId);
   if (requestChat) {
     requestChat.style.display = canChat ? "block" : "none";
   }
@@ -1208,21 +1373,8 @@ function startRequestPolling(requestId) {
         requestStatus === "completed" ||
         requestStatus === "cancelled"
       ) {
-        if (jobStatus === "completed" || requestStatus === "completed") {
-          resetTripCalculation();
-        }
-        clearInterval(requestPollTimer);
-        requestPollTimer = null;
-        activeRequestId = null;
-        lastJobStatus = null;
-        lastRequestStatus = null;
-        try {
-          localStorage.removeItem("resq_active_request");
-        } catch {}
-        if (activeProviderMarker) {
-          activeProviderMarker.remove();
-          activeProviderMarker = null;
-        }
+        hardResetToInitial();
+        return;
       }
     } catch (err) {
       mapMessage.textContent = err.message || "Nem sikerült lekérni a kérés státuszát.";
@@ -1257,6 +1409,31 @@ mobileListToggle?.addEventListener("click", () => {
 });
 
 mobileHelpBtn?.addEventListener("click", () => {
+  if (forceFreshStart) {
+    forceFreshStart = false;
+    prepareFreshStart();
+    if (manualLocationInput) manualLocationInput.value = "";
+    if (destinationInput) destinationInput.value = "";
+    setMobileFormOpen(true);
+    sidebarEl?.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  const hasTrip = Number.isFinite(tripDistanceKm);
+  const hasDestination = Boolean(destinationCoords);
+  if (hasTrip || hasDestination) {
+    mobileHomeOverride = false;
+    tripUiForceForm = false;
+    setMobileFormOpen(false);
+    const ensureTrip = hasTrip
+      ? Promise.resolve()
+      : fetchTripRoute(userLocation || fallbackLocation, destinationCoords).catch(() => {});
+    ensureTrip.then(() => {
+      updateRequestAvailability();
+      updateTripUiState(true);
+      loadProviders();
+    });
+    return;
+  }
   tripUiForceForm = true;
   setMobileFormOpen(true);
   sidebarEl?.scrollTo({ top: 0, behavior: "smooth" });
@@ -1362,12 +1539,14 @@ destinationCalcBtn?.addEventListener("click", async () => {
     }
     const route = await fetchTripRoute(userLocation, destinationCoords);
     await drawTripRouteLine(userLocation, destinationCoords, true);
-    if (destinationStatus && route) {
-      destinationStatus.textContent = `Cél: ${place.displayName} | ${Math.round(route.distanceKm * 10) / 10} km | ~${Math.round(route.durationMinutes)} perc`;
-    }
-    tripUiForceForm = false;
-    updateRequestAvailability();
-    updateTripUiState(true);
+  if (destinationStatus && route) {
+    destinationStatus.textContent = `Cél: ${place.displayName} | ${Math.round(route.distanceKm * 10) / 10} km | ~${Math.round(route.durationMinutes)} perc`;
+  }
+  mobileHomeOverride = false;
+  tripUiForceForm = false;
+  setMobileFormOpen(false);
+  updateRequestAvailability();
+  updateTripUiState(true);
     loadProviders();
   } catch (err) {
     if (destinationStatus) {
@@ -1395,32 +1574,16 @@ requestCancelBtn?.addEventListener("click", async () => {
       method: "PATCH"
     });
     mapMessage.textContent = "A mentést lemondtad.";
-    startRequestPolling(activeRequestId);
+    hardResetToInitial();
   } catch (err) {
     alert(err.message);
   }
 });
 
 requestNewBtn?.addEventListener("click", () => {
-  activeRequestId = null;
-  lastJobStatus = null;
-  lastRequestStatus = null;
-  activeJobId = null;
-  rideFocusActive = false;
-  setRideFocusMode(false);
-  clearActiveRouteLine();
-  clearTripRouteLine();
-  clearDestinationMarker();
-  try {
-    localStorage.removeItem("resq_active_request");
-  } catch {}
-  if (requestStatusCard) {
-    requestStatusCard.style.display = "none";
-  }
-  if (activeProviderMarker) {
-    activeProviderMarker.remove();
-    activeProviderMarker = null;
-  }
+  resetTripCalculation();
+  resetRequestView();
+  returnToMobileHome();
   mapMessage.textContent = "Válassz új autómentőt a listából.";
   loadProviders();
 });
@@ -1597,49 +1760,7 @@ async function loadProviders() {
 }
 
 async function requestHelp(provider) {
-  const providerId = Number(provider?.id);
-  const role = getUserRole();
-  if (!role) {
-    mapMessage.textContent = "A mentést csak bejelentkezve tudod kérni.";
-    return;
-  }
-  if (role !== "User") {
-    mapMessage.textContent = "A mentést csak felhasználók tudják kérni.";
-    return;
-  }
-  if (!userLocation) {
-    return;
-  }
-  if (!Number.isFinite(tripDistanceKm)) {
-    mapMessage.textContent = "Adj meg celcimet a kereseshez.";
-    showToast("Adj meg celcimet a kereseshez.");
-    return;
-  }
-  const modalResult = await openRequestNotesModal();
-  if (modalResult.cancelled) {
-    mapMessage.textContent = "Keres megszakitva.";
-    return;
-  }
-  const notes = modalResult.notes || "";
-  try {
-    const created = await apiFetch("/api/requests", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        pickupLat: userLocation.lat,
-        pickupLng: userLocation.lng,
-        problemType: "breakdown",
-        notes,
-        selectedProviderId: provider.id
-      })
-    });
-    mapMessage.textContent = "Kérés elküldve. Várjuk az autómentő visszajelzését…";
-    if (created?.id) {
-      startRequestPolling(created.id);
-    }
-  } catch (err) {
-    alert(err.message);
-  }
+  return requestHelpSafe(provider);
 }
 
 async function requestHelpSafe(provider) {
