@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Rajzfilmes rozsdás autómentő</title>
+  <desc id="desc">Mosolygós, rozsdás stílusú autómentő sötét háttéren.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="100%" stop-color="#1a2638"/>
+    </linearGradient>
+    <linearGradient id="rustA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#b96b3d"/>
+      <stop offset="100%" stop-color="#8d4e2f"/>
+    </linearGradient>
+    <linearGradient id="rustB" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#7c3f28"/>
+      <stop offset="100%" stop-color="#a65a36"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="180%" height="200%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <ellipse cx="780" cy="735" rx="450" ry="70" fill="#000" opacity="0.35"/>
+
+  <g filter="url(#shadow)">
+    <ellipse cx="560" cy="640" rx="95" ry="95" fill="#1f2937"/>
+    <ellipse cx="560" cy="640" rx="48" ry="48" fill="#4b5563"/>
+    <ellipse cx="1010" cy="650" rx="88" ry="88" fill="#1f2937"/>
+    <ellipse cx="1010" cy="650" rx="44" ry="44" fill="#4b5563"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <path d="M420 585 C440 510 520 468 635 460 L900 450 C1035 450 1115 515 1125 590 L1125 640 L430 640 Z" fill="url(#rustA)"/>
+    <path d="M785 420 C860 420 930 428 965 448 L965 550 L690 550 L690 448 C710 432 742 420 785 420 Z" fill="url(#rustB)"/>
+    <rect x="705" y="454" width="110" height="70" rx="12" fill="#d7ecff"/>
+    <rect x="822" y="454" width="120" height="70" rx="12" fill="#d7ecff"/>
+    <circle cx="755" cy="490" r="23" fill="#ffffff"/>
+    <circle cx="878" cy="490" r="23" fill="#ffffff"/>
+    <circle cx="760" cy="494" r="10" fill="#2f3d4f"/>
+    <circle cx="874" cy="494" r="10" fill="#2f3d4f"/>
+
+    <path d="M505 545 C500 520 520 500 545 500 L630 500 C645 500 662 512 668 530 L678 560 C684 580 670 600 650 600 L530 600 C514 600 505 588 505 572 Z" fill="#9c5231"/>
+    <circle cx="510" cy="545" r="22" fill="#a15a35"/>
+    <circle cx="665" cy="560" r="18" fill="#a15a35"/>
+    <path d="M560 585 C600 620 645 618 680 590" stroke="#2a140e" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <rect x="586" y="586" width="20" height="28" rx="4" fill="#f3e6c7"/>
+    <rect x="618" y="590" width="20" height="24" rx="4" fill="#f3e6c7"/>
+
+    <path d="M965 475 L1085 430 L1105 452 L985 500 Z" fill="#7a3f28"/>
+    <path d="M1088 432 L1210 335 L1236 358 L1115 455 Z" fill="#6b7280"/>
+    <line x1="1216" y1="340" x2="1266" y2="468" stroke="#9ca3af" stroke-width="6"/>
+    <path d="M1260 468 q18 22 42 0" stroke="#9ca3af" stroke-width="6" fill="none"/>
+  </g>
+
+  <g opacity="0.45">
+    <circle cx="620" cy="520" r="12" fill="#4d2c1f"/>
+    <circle cx="940" cy="560" r="14" fill="#4d2c1f"/>
+    <circle cx="845" cy="585" r="10" fill="#4d2c1f"/>
+    <circle cx="735" cy="555" r="9" fill="#4d2c1f"/>
+    <circle cx="1030" cy="590" r="11" fill="#4d2c1f"/>
+  </g>
+</svg>

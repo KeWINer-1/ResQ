@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>resq - Fiókom</title>
+    <title>resq - Adataim</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -32,9 +32,10 @@
       </nav>
     </header>
 
-    <section class="section">
-      <div class="form-card">
-        <h2>Fiókom</h2>
+    <section class="section account-section">
+      <div class="account-layout">
+        <div class="form-card account-main-card">
+        <h2>Adataim</h2>
         <div id="account-alert" class="alert-box" style="display: none;"></div>
         <p class="notice" id="account-message"></p>
 
@@ -70,6 +71,13 @@
             <button class="btn secondary" id="admin-logout-btn" type="button">Kijelentkezes</button>
           </div>
         </div>
+        </div>
+
+        <aside class="form-card account-history-card" id="account-history-card" style="display: none;">
+          <h2>Előzmény</h2>
+          <p class="notice" id="account-history-summary">Betöltés...</p>
+          <div class="account-history-list" id="account-history-list"></div>
+        </aside>
       </div>
     </section>
 

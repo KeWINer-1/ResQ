@@ -59,6 +59,11 @@ const requestNotesModal = document.getElementById("request-notes-modal");
 const requestNotesInput = document.getElementById("request-notes-input");
 const requestNotesCancel = document.getElementById("request-notes-cancel");
 const requestNotesSend = document.getElementById("request-notes-send");
+const requestRatingModal = document.getElementById("request-rating-modal");
+const requestRatingModalStars = document.getElementById("request-rating-modal-stars");
+const requestRatingModalComment = document.getElementById("request-rating-modal-comment");
+const requestRatingModalSend = document.getElementById("request-rating-modal-send");
+const requestRatingModalLater = document.getElementById("request-rating-modal-later");
 const mobileHelpCta = document.getElementById("mobile-home-cta");
 const mobileHelpBtn = document.getElementById("mobile-help-btn");
 const mobileSheetGrip = document.getElementById("mobile-sheet-grip");
@@ -1427,6 +1432,11 @@ async function updateRequestStatusUI(data) {
     requestRatingPanel.style.display =
       jobStatus === "completed" && jobId && !alreadyRated ? "block" : "none";
   }
+  if (jobStatus === "completed" && jobId && !alreadyRated) {
+    openRequestRatingModal();
+  } else {
+    closeRequestRatingModal();
+  }
 
   if (jobStatus && jobStatus !== lastRequestStatus) {
     notifyUser("Mentés státusz frissült", jobStatusLabel(jobStatus) || jobStatus);
@@ -1466,10 +1476,14 @@ function startRequestPolling(requestId) {
         lastJobStatus = jobStatus;
       }
 
+      const jobId = data?.job?.Id || data?.job?.id;
+      const ratingSubmitted = jobId
+        ? localStorage.getItem(`resq_rating_submitted_${jobId}`) === "1"
+        : false;
+
       if (
-        jobStatus === "completed" ||
+        (jobStatus === "completed" && ratingSubmitted) ||
         jobStatus === "cancelled" ||
-        requestStatus === "completed" ||
         requestStatus === "cancelled"
       ) {
         hardResetToInitial();
@@ -1607,6 +1621,9 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && requestNotesModal?.style?.display === "flex") {
     closeRequestNotesModal(true);
   }
+  if (event.key === "Escape" && requestRatingModal?.style?.display === "flex") {
+    closeRequestRatingModal();
+  }
 });
 
 destinationCalcBtn?.addEventListener("click", async () => {
@@ -1718,15 +1735,47 @@ requestRatingSend?.addEventListener("click", async () => {
   }
 });
 
+requestRatingModalSend?.addEventListener("click", async () => {
+  if (!activeJobId) return;
+  const stars = parseInt(requestRatingModalStars?.value || "0", 10);
+  const comment = requestRatingModalComment?.value?.trim() || "";
+  try {
+    await apiFetch(`/api/jobs/${activeJobId}/rating`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stars, comment })
+    });
+    localStorage.setItem(`resq_rating_submitted_${activeJobId}`, "1");
+    closeRequestRatingModal();
+    if (requestRatingPanel) {
+      requestRatingPanel.style.display = "none";
+    }
+    mapMessage.textContent = "Köszönjük az értékelést!";
+    hardResetToInitial();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+requestRatingModalLater?.addEventListener("click", () => {
+  closeRequestRatingModal();
+});
+
+requestRatingModal?.addEventListener("click", (event) => {
+  if (event.target === requestRatingModal) {
+    closeRequestRatingModal();
+  }
+});
+
 function initMap(lat, lng) {
   const maxBounds = [
     [-85, -180],
     [85, 180]
   ];
-  map = L.map("map", { maxBounds, maxBoundsViscosity: 1.0 }).setView([lat, lng], 13);
+  map = L.map("map", { maxBounds, maxBoundsViscosity: 1.0, minZoom: 7 }).setView([lat, lng], 13);
   L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
     maxZoom: 19,
-    minZoom: 11,
+    minZoom: 7,
     noWrap: true,
     worldCopyJump: true,
     attribution: "&copy; OpenStreetMap &copy; CARTO"
@@ -1738,7 +1787,12 @@ function initMap(lat, lng) {
     iconSize: [34, 34],
     iconAnchor: [17, 17]
   });
-  userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(map).bindPopup("Te itt vagy");
+  userMarker = L.marker([lat, lng], { icon: userIcon })
+    .addTo(map)
+    .bindPopup("Te itt vagy", {
+      className: "map-user-popup",
+      offset: [0, -10]
+    });
   map.on("moveend zoomend", () => {
     updateMapCenterButtonState();
   });
@@ -1875,6 +1929,48 @@ async function requestHelp(provider) {
   return requestHelpSafe(provider);
 }
 
+async function reverseGeocodeAddress(lat, lng) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(
+    lat
+  )}&lon=${encodeURIComponent(lng)}`;
+  const response = await fetch(url, {
+    headers: { "Accept-Language": "hu" }
+  });
+  if (!response.ok) throw new Error("Nem sikerült címet lekérni a helyzethez.");
+  const data = await response.json();
+  const displayName = String(data?.display_name || "").trim();
+  if (!displayName) throw new Error("Ehhez a ponthoz nem található cím.");
+  return displayName;
+}
+
+async function fillManualAddressFromCoords(lat, lng) {
+  if (!manualLocationInput) return;
+  try {
+    const address = await reverseGeocodeAddress(lat, lng);
+    manualLocationInput.value = address;
+    saveManualLocation({ query: address, lat, lng });
+    if (manualLocationStatus) {
+      manualLocationStatus.textContent = "A pontos cím automatikusan beírva.";
+    }
+  } catch {
+    manualLocationInput.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    saveManualLocation({ query: manualLocationInput.value, lat, lng });
+    if (manualLocationStatus) {
+      manualLocationStatus.textContent = "Cím nem található, koordináta beírva.";
+    }
+  }
+}
+
+function openRequestRatingModal() {
+  if (!requestRatingModal) return;
+  requestRatingModal.style.display = "flex";
+}
+
+function closeRequestRatingModal() {
+  if (!requestRatingModal) return;
+  requestRatingModal.style.display = "none";
+}
+
 async function requestHelpSafe(provider) {
   const providerId = Number(provider?.id);
   const role = getUserRole();
@@ -1906,6 +2002,13 @@ async function requestHelpSafe(provider) {
     return;
   }
   const notes = modalResult.notes || "";
+  const destinationLabel =
+    destinationInput?.value?.trim() ||
+    loadDestinationLocation()?.displayName ||
+    null;
+  const notesWithDestination = destinationLabel
+    ? `${notes}${notes ? "\n" : ""}__DESTINATION__:${destinationLabel}`
+    : notes;
   const estimatedPrice = estimatePrice(tripDistanceKm, provider);
 
   try {
@@ -1924,7 +2027,7 @@ async function requestHelpSafe(provider) {
         pickupLng: userLocation.lng,
         pickupAddress: manualLocationInput?.value?.trim() || null,
         problemType: "breakdown",
-        notes,
+        notes: notesWithDestination,
         selectedProviderId: providerId,
         estimatedPrice: Number.isFinite(estimatedPrice) ? estimatedPrice : null
       })
@@ -1964,8 +2067,9 @@ function locateUser() {
   };
 
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
+    async (pos) => {
       updateUserLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+      await fillManualAddressFromCoords(pos.coords.latitude, pos.coords.longitude);
     },
     () => {
       providersList.innerHTML = "<p class=\"notice\">Nem sikerült helymeghatározni. Budapestet mutatjuk.</p>";
