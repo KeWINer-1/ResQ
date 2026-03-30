@@ -1803,17 +1803,67 @@ async function requestHelpSafe(provider) {
 
     mapMessage.textContent = "Keres kuldese...";
 
+    const savedDestination = loadDestinationLocation();
+    let resolvedDestination = destinationCoords;
+    if (
+      !resolvedDestination &&
+      savedDestination &&
+      Number.isFinite(savedDestination.lat) &&
+      Number.isFinite(savedDestination.lng)
+    ) {
+      resolvedDestination = { lat: savedDestination.lat, lng: savedDestination.lng };
+    }
+
+    const destinationAddressValue =
+      destinationInput?.value?.trim() ||
+      savedDestination?.displayName ||
+      savedDestination?.query ||
+      "";
+
+    if (!resolvedDestination && destinationAddressValue) {
+      try {
+        const place = await geocodeAddress(destinationAddressValue);
+        resolvedDestination = { lat: place.lat, lng: place.lng };
+        destinationCoords = resolvedDestination;
+        updateDestinationMarker(place.lat, place.lng);
+        saveDestinationLocation({
+          query: destinationAddressValue,
+          lat: place.lat,
+          lng: place.lng,
+          displayName: place.displayName
+        });
+        if (destinationStatus) {
+          destinationStatus.textContent = `Cel: ${place.displayName}`;
+        }
+      } catch (err) {
+        mapMessage.textContent = err.message || "Nem sikerult a celcimet beolvasni.";
+        showToast(mapMessage.textContent);
+        if (providerSelectRequest) {
+          providerSelectRequest.disabled = false;
+          providerSelectRequest.textContent = "Keres kuldese";
+        }
+        return;
+      }
+    }
+
+    const payload = {
+      pickupLat: userLocation.lat,
+      pickupLng: userLocation.lng,
+      pickupAddress: manualLocationInput?.value?.trim() || null,
+      problemType: "breakdown",
+      notes,
+      selectedProviderId: providerId
+    };
+    if (resolvedDestination && Number.isFinite(resolvedDestination.lat) && Number.isFinite(resolvedDestination.lng)) {
+      payload.destinationLat = resolvedDestination.lat;
+      payload.destinationLng = resolvedDestination.lng;
+      payload.destinationAddress = destinationAddressValue || null;
+    }
+
     const created = await apiFetch("/api/requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        pickupLat: userLocation.lat,
-        pickupLng: userLocation.lng,
-        pickupAddress: manualLocationInput?.value?.trim() || null,
-        problemType: "breakdown",
-        notes,
-        selectedProviderId: providerId
-      })
+      body: JSON.stringify(payload)
     });
 
     mapMessage.textContent = "Keres elkuldve. Varjuk az automentot.";

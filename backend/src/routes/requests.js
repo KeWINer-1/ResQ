@@ -18,11 +18,27 @@ function sanitizeBody(body) {
 }
 
 router.post("/", authRequired, requireRole("User"), async (req, res) => {
-  const { pickupLat, pickupLng, pickupAddress, problemType, notes, selectedProviderId } =
-    req.body || {};
+  const {
+    pickupLat,
+    pickupLng,
+    pickupAddress,
+    destinationLat,
+    destinationLng,
+    destinationAddress,
+    problemType,
+    notes,
+    selectedProviderId
+  } = req.body || {};
 
   if (typeof pickupLat !== "number" || typeof pickupLng !== "number") {
     return res.status(400).json({ error: "Invalid coordinates" });
+  }
+  if (
+    (destinationLat !== null && destinationLat !== undefined && typeof destinationLat !== "number") ||
+    (destinationLng !== null && destinationLng !== undefined && typeof destinationLng !== "number") ||
+    ((destinationLat !== null && destinationLat !== undefined) !== (destinationLng !== null && destinationLng !== undefined))
+  ) {
+    return res.status(400).json({ error: "Invalid destination coordinates" });
   }
 
   try {
@@ -58,11 +74,14 @@ router.post("/", authRequired, requireRole("User"), async (req, res) => {
       .input("pickupLat", sql.Decimal(10, 6), pickupLat)
       .input("pickupLng", sql.Decimal(10, 6), pickupLng)
       .input("pickupAddress", sql.VarChar, pickupAddress || null)
+      .input("destinationLat", sql.Decimal(10, 6), destinationLat ?? null)
+      .input("destinationLng", sql.Decimal(10, 6), destinationLng ?? null)
+      .input("destinationAddress", sql.VarChar, destinationAddress || null)
       .input("problemType", sql.VarChar, problemType || null)
       .input("notes", sql.VarChar, notes || null)
       .input("selectedProviderId", sql.Int, selectedProviderId || null)
       .query(
-        "INSERT INTO ServiceRequests (UserId, PickupLat, PickupLng, PickupAddress, ProblemType, Notes, SelectedProviderId, Status) OUTPUT INSERTED.Id VALUES (@userId, @pickupLat, @pickupLng, @pickupAddress, @problemType, @notes, @selectedProviderId, 'new')"
+        "INSERT INTO ServiceRequests (UserId, PickupLat, PickupLng, PickupAddress, DestinationLat, DestinationLng, DestinationAddress, ProblemType, Notes, SelectedProviderId, Status) OUTPUT INSERTED.Id VALUES (@userId, @pickupLat, @pickupLng, @pickupAddress, @destinationLat, @destinationLng, @destinationAddress, @problemType, @notes, @selectedProviderId, 'new')"
       );
 
     return res.status(201).json({ id: result.recordset[0].Id });
@@ -83,7 +102,7 @@ router.get("/:id(\\d+)", authRequired, async (req, res) => {
       .request()
       .input("id", sql.Int, id)
       .query(
-        "SELECT TOP 1 r.Id, r.UserId, r.SelectedProviderId, r.PickupLat, r.PickupLng, r.PickupAddress, r.ProblemType, r.Notes, r.Status, r.CreatedAt, r.UpdatedAt, p.Name AS ProviderName, p.Phone AS ProviderPhone, p.LastLat AS ProviderLat, p.LastLng AS ProviderLng, p.LastLocationAt AS ProviderLocationAt, p.BaseFee AS ProviderBaseFee, p.PerKmFee AS ProviderPerKmFee FROM ServiceRequests r LEFT JOIN Providers p ON p.Id = r.SelectedProviderId WHERE r.Id = @id"
+        "SELECT TOP 1 r.Id, r.UserId, r.SelectedProviderId, r.PickupLat, r.PickupLng, r.PickupAddress, r.DestinationLat, r.DestinationLng, r.DestinationAddress, r.ProblemType, r.Notes, r.Status, r.CreatedAt, r.UpdatedAt, p.Name AS ProviderName, p.Phone AS ProviderPhone, p.LastLat AS ProviderLat, p.LastLng AS ProviderLng, p.LastLocationAt AS ProviderLocationAt, p.BaseFee AS ProviderBaseFee, p.PerKmFee AS ProviderPerKmFee FROM ServiceRequests r LEFT JOIN Providers p ON p.Id = r.SelectedProviderId WHERE r.Id = @id"
       );
 
     if (result.recordset.length === 0) {
@@ -117,6 +136,9 @@ router.get("/:id(\\d+)", authRequired, async (req, res) => {
       pickupLat: row.PickupLat,
       pickupLng: row.PickupLng,
       pickupAddress: row.PickupAddress,
+      destinationLat: row.DestinationLat,
+      destinationLng: row.DestinationLng,
+      destinationAddress: row.DestinationAddress,
       problemType: row.ProblemType,
       notes: row.Notes,
       status: row.Status,
@@ -148,7 +170,7 @@ router.get("/me", authRequired, requireRole("User"), async (req, res) => {
       .request()
       .input("userId", sql.Int, req.user.userId)
       .query(
-        "SELECT r.Id, r.PickupLat, r.PickupLng, r.PickupAddress, r.ProblemType, r.Notes, r.Status, r.CreatedAt, r.SelectedProviderId, p.Name AS ProviderName, p.Phone AS ProviderPhone, j.Status AS JobStatus FROM ServiceRequests r LEFT JOIN Providers p ON p.Id = r.SelectedProviderId LEFT JOIN Jobs j ON j.RequestId = r.Id AND j.ProviderId = r.SelectedProviderId WHERE r.UserId = @userId ORDER BY r.CreatedAt DESC"
+        "SELECT r.Id, r.PickupLat, r.PickupLng, r.PickupAddress, r.DestinationLat, r.DestinationLng, r.DestinationAddress, r.ProblemType, r.Notes, r.Status, r.CreatedAt, r.SelectedProviderId, p.Name AS ProviderName, p.Phone AS ProviderPhone, j.Status AS JobStatus FROM ServiceRequests r LEFT JOIN Providers p ON p.Id = r.SelectedProviderId LEFT JOIN Jobs j ON j.RequestId = r.Id AND j.ProviderId = r.SelectedProviderId WHERE r.UserId = @userId ORDER BY r.CreatedAt DESC"
       );
 
     return res.json(result.recordset);
@@ -164,7 +186,7 @@ router.get("/provider", authRequired, requireRole("Provider"), async (req, res) 
       .request()
       .input("providerId", sql.Int, req.user.providerId)
       .query(
-        "SELECT r.Id, r.PickupLat, r.PickupLng, r.PickupAddress, r.ProblemType, r.Notes, r.Status, r.CreatedAt, j.Status AS JobStatus FROM ServiceRequests r LEFT JOIN Jobs j ON j.RequestId = r.Id AND j.ProviderId = r.SelectedProviderId WHERE r.SelectedProviderId = @providerId ORDER BY r.CreatedAt DESC"
+        "SELECT r.Id, r.PickupLat, r.PickupLng, r.PickupAddress, r.DestinationLat, r.DestinationLng, r.DestinationAddress, r.ProblemType, r.Notes, r.Status, r.CreatedAt, j.Status AS JobStatus FROM ServiceRequests r LEFT JOIN Jobs j ON j.RequestId = r.Id AND j.ProviderId = r.SelectedProviderId WHERE r.SelectedProviderId = @providerId ORDER BY r.CreatedAt DESC"
       );
 
     return res.json(result.recordset);
