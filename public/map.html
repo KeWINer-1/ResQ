@@ -204,6 +204,26 @@
         </div>
       </div>
     </div>
+    <div class="modal-backdrop" id="request-rating-modal" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-title">Értékelés és vélemény</div>
+        <p class="notice">A mentés elkészült. Kérlek értékeld az autómentőt.</p>
+        <label>Csillagok</label>
+        <select id="request-rating-modal-stars">
+          <option value="5">5 - Kiváló</option>
+          <option value="4">4 - Jó</option>
+          <option value="3">3 - Közepes</option>
+          <option value="2">2 - Gyenge</option>
+          <option value="1">1 - Rossz</option>
+        </select>
+        <label>Vélemény (opcionális)</label>
+        <textarea id="request-rating-modal-comment" rows="3" placeholder="Rövid visszajelzés..."></textarea>
+        <div class="cta-row" style="margin-top: 12px;">
+          <button class="btn secondary" id="request-rating-modal-later" type="button">Később</button>
+          <button class="btn" id="request-rating-modal-send" type="button">Értékelés küldése</button>
+        </div>
+      </div>
+    </div>
 
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"

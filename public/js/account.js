@@ -13,6 +13,9 @@ const adminProfileEl = document.getElementById("admin-profile");
 const adminEmailEl = document.getElementById("admin-email");
 const adminRoleEl = document.getElementById("admin-role");
 const adminLogoutBtn = document.getElementById("admin-logout-btn");
+const historyCardEl = document.getElementById("account-history-card");
+const historySummaryEl = document.getElementById("account-history-summary");
+const historyListEl = document.getElementById("account-history-list");
 
 let currentProfile = null;
 let isEditMode = false;
@@ -30,13 +33,13 @@ function showAlert(message) {
 
 function roleLabel(profile) {
   if (profile?.role === "Provider") return "Autómentő";
-  if (profile?.role === "User") return "Felhasznalo";
+  if (profile?.role === "User") return "Felhasználó";
   if (profile?.role === "Admin") return "Admin";
   return profile?.role || "Ismeretlen";
 }
 
 function renderProfile(profile) {
-  const displayName = profile.provider?.name || profile.name || profile.email || "Fiókom";
+  const displayName = profile.provider?.name || profile.name || profile.email || "Adataim";
   nameEl.value = displayName;
   emailEl.value = profile.email || "";
   phoneEl.value = profile.provider?.phone || profile.phone || "";
@@ -82,16 +85,97 @@ function friendlyAccountError(error) {
     return "A fiók nem található. Jelentkezz be újra.";
   }
   if (msg.includes("forbidden")) {
-    return "Nincs jogosultsagod ehhez az oldalhoz.";
+    return "Nincs jogosultságod ehhez az oldalhoz.";
   }
   return "Hiba történt a fiókadatok betöltése közben.";
 }
 
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("hu-HU", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function statusLabel(status) {
+  const value = String(status || "").toLowerCase();
+  if (value === "new") return "Új";
+  if (value === "accepted") return "Elfogadva";
+  if (value === "enroute") return "Úton";
+  if (value === "arrived") return "Megérkezett";
+  if (value === "completed") return "Kész";
+  if (value === "cancelled") return "Lemondva";
+  return status || "Ismeretlen";
+}
+
+function extractDestinationFromNotes(notes) {
+  const value = String(notes || "");
+  const marker = "__DESTINATION__:";
+  const idx = value.indexOf(marker);
+  if (idx < 0) return "";
+  return value.slice(idx + marker.length).split("\n")[0].trim();
+}
+
+function renderHistory(items) {
+  if (!historySummaryEl || !historyListEl) return;
+  const safeItems = Array.isArray(items) ? items : [];
+  historySummaryEl.textContent = `Eddig ${safeItems.length} mentőt hívtál.`;
+
+  if (!safeItems.length) {
+    historyListEl.innerHTML = '<p class="notice">Még nincs mentési előzményed.</p>';
+    return;
+  }
+
+  historyListEl.innerHTML = safeItems
+    .map((item) => {
+      const fromAddress = item?.PickupAddress || "Nincs megadva indulási cím";
+      const toAddress = extractDestinationFromNotes(item?.Notes);
+      const problem = item?.ProblemType || "Nincs megadva hiba";
+      const provider = item?.ProviderName || "Még nincs hozzárendelve";
+      const created = formatDateTime(item?.CreatedAt);
+      const status = statusLabel(item?.JobStatus || item?.Status);
+      const statusKey = String(item?.JobStatus || item?.Status || "").toLowerCase();
+      return `
+        <article class="account-history-item">
+          <h3>#${item?.Id || "-"}</h3>
+          <span class="history-status-badge history-status-${statusKey}">${status}</span>
+          <p class="history-row"><strong>Dátum:</strong><span>${created}</span></p>
+          <p class="history-row"><strong>Indulás:</strong><span>${fromAddress}</span></p>
+          <p class="history-row"><strong>Cél:</strong><span>${toAddress || "Nincs megadva célcím"}</span></p>
+          <p class="history-row"><strong>Hiba:</strong><span>${problem}</span></p>
+          <p class="history-row"><strong>Autómentő:</strong><span>${provider}</span></p>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+async function loadHistory() {
+  if (!historyCardEl || !historySummaryEl || !historyListEl) return;
+  historyCardEl.style.display = "flex";
+  historySummaryEl.textContent = "Betöltés...";
+  historyListEl.innerHTML = "";
+  try {
+    const rows = await apiFetch("/api/requests/me");
+    renderHistory(rows);
+  } catch (error) {
+    historySummaryEl.textContent = "Az előzmények betöltése sikertelen.";
+    historyListEl.innerHTML = "";
+  }
+}
+
 async function loadAccount() {
   if (!getToken()) {
-    showAlert("A folytatashoz jelentkezz be.");
+    showAlert("A folytatáshoz jelentkezz be.");
     messageEl.textContent = "";
     detailsEl.style.display = "none";
+    if (historyCardEl) historyCardEl.style.display = "none";
     return;
   }
 
@@ -101,12 +185,14 @@ async function loadAccount() {
     if (profile?.role === "Admin") {
       if (detailsEl) detailsEl.style.display = "none";
       if (adminProfileEl) adminProfileEl.style.display = "block";
+      if (historyCardEl) historyCardEl.style.display = "none";
       renderAdminProfile(profile);
     } else {
       renderProfile(profile);
       if (detailsEl) detailsEl.style.display = "block";
       if (adminProfileEl) adminProfileEl.style.display = "none";
       setEditMode(false);
+      await loadHistory();
     }
     showAlert("");
     messageEl.textContent = "";
@@ -115,10 +201,11 @@ async function loadAccount() {
     messageEl.textContent = "";
     if (detailsEl) detailsEl.style.display = "none";
     if (adminProfileEl) adminProfileEl.style.display = "none";
+    if (historyCardEl) historyCardEl.style.display = "none";
   }
 }
 
-logoutBtn.addEventListener("click", () => {
+logoutBtn?.addEventListener("click", () => {
   logout();
 });
 
@@ -167,7 +254,7 @@ saveBtn?.addEventListener("click", async () => {
       renderProfile(updated);
     }
     setEditMode(false);
-    messageEl.textContent = "Adataid frissitve.";
+    messageEl.textContent = "Adataid frissítve.";
     if (typeof updateAuthLinks === "function") {
       updateAuthLinks();
     }

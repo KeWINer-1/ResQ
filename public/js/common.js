@@ -348,6 +348,13 @@ function ensureAboutBeforeAccount() {
   });
 }
 
+function ensureBrandGoesHome() {
+  const brandLinks = document.querySelectorAll("a.brand");
+  brandLinks.forEach((link) => {
+    link.setAttribute("href", "/index.html");
+  });
+}
+
 function logout() {
   clearToken();
   window.location.href = "/auth.html";
@@ -393,7 +400,7 @@ async function updateAuthLinks() {
     if (token) {
       // Ha a profil lekérés hibázik (pl. backend nem elérhető), ne dobjuk ki a token-t.
       authLinks.forEach((link) => {
-        link.textContent = "Fiokom";
+        link.textContent = "Fiókom";
         link.setAttribute("href", "/account.html");
         link.classList.add("account-link");
       });
@@ -410,6 +417,7 @@ async function updateAuthLinks() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  ensureBrandGoesHome();
   ensureAccountLinkAtEnd();
   ensureAboutBeforeAccount();
   updateAuthLinks();

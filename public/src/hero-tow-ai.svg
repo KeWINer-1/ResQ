@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Sárga autómentő oldalnézetben</title>
+  <desc id="desc">Stilizált, modern sárga autómentő platós jármű sötét háttéren.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0b0f17" />
+      <stop offset="100%" stop-color="#101827" />
+    </linearGradient>
+    <linearGradient id="truckYellow" x1="0" x2="1">
+      <stop offset="0%" stop-color="#ffb326" />
+      <stop offset="100%" stop-color="#ff8a1f" />
+    </linearGradient>
+    <linearGradient id="metal" x1="0" x2="1">
+      <stop offset="0%" stop-color="#d1d5db" />
+      <stop offset="100%" stop-color="#9ca3af" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)" />
+
+  <ellipse cx="830" cy="740" rx="520" ry="70" fill="#000" opacity="0.35"/>
+
+  <g filter="url(#shadow)">
+    <rect x="380" y="530" width="770" height="96" rx="12" fill="url(#metal)" />
+    <rect x="365" y="600" width="800" height="36" rx="8" fill="#7c8594" />
+    <polygon points="290,620 380,620 380,530 325,530" fill="#c4cad4" />
+    <polygon points="250,620 290,620 325,530 285,530" fill="#a5adba" />
+    <rect x="410" y="548" width="640" height="12" fill="#6b7280" opacity="0.6" />
+    <rect x="410" y="573" width="640" height="12" fill="#6b7280" opacity="0.6" />
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="980" y="420" width="300" height="210" rx="24" fill="url(#truckYellow)" />
+    <rect x="1045" y="455" width="130" height="85" rx="12" fill="#233448" />
+    <rect x="1180" y="458" width="70" height="105" rx="12" fill="#1f2937" />
+    <rect x="1002" y="510" width="18" height="56" rx="6" fill="#d97706" />
+    <rect x="1000" y="585" width="280" height="45" rx="12" fill="#111827" opacity="0.8" />
+  </g>
+
+  <g>
+    <rect x="930" y="520" width="70" height="26" rx="8" fill="#111827" />
+    <rect x="840" y="520" width="70" height="26" rx="8" fill="#111827" />
+    <rect x="745" y="520" width="70" height="26" rx="8" fill="#111827" />
+  </g>
+
+  <g filter="url(#shadow)">
+    <circle cx="520" cy="670" r="72" fill="#111827" />
+    <circle cx="520" cy="670" r="36" fill="#374151" />
+    <circle cx="1120" cy="670" r="72" fill="#111827" />
+    <circle cx="1120" cy="670" r="36" fill="#374151" />
+    <circle cx="1320" cy="670" r="58" fill="#111827" />
+    <circle cx="1320" cy="670" r="28" fill="#374151" />
+  </g>
+
+  <g opacity="0.75">
+    <rect x="1010" y="435" width="110" height="10" rx="5" fill="#ffe6a6" />
+    <rect x="1010" y="450" width="95" height="8" rx="4" fill="#ffe6a6" />
+  </g>
+</svg>

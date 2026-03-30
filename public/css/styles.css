@@ -323,11 +323,131 @@ header {
 
 .form-card {
   max-width: 520px;
+  max-height: 500px;
   margin: 40px auto;
   background: var(--panel);
   padding: 28px;
   border-radius: 20px;
   box-shadow: var(--shadow);
+}
+
+.account-section .account-layout {
+  width: min(1100px, 92vw);
+  margin: 40px auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(320px, 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+
+.account-section .account-layout .form-card {
+  margin: 0;
+  max-width: none;
+}
+
+.account-main-card,
+.account-history-card {
+  height: 100%;
+}
+
+.account-history-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.account-history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 8px;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(160, 180, 210, 0.35) transparent;
+}
+
+.account-history-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.account-history-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.account-history-list::-webkit-scrollbar-thumb {
+  background: rgba(160, 180, 210, 0.35);
+  border-radius: 10px;
+}
+
+.account-history-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(160, 180, 210, 0.5);
+}
+
+.account-history-item {
+  position: relative;
+  background: #0f1218;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.account-history-item + .account-history-item {
+  margin-top: 10px;
+}
+
+.account-history-item h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  padding-right: 90px;
+}
+
+.account-history-item p {
+  margin: 6px 0;
+  line-height: 1.45;
+  color: #dbe4f1;
+}
+
+.account-history-item .history-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: start;
+}
+
+.account-history-item .history-row strong {
+  min-width: 0;
+  margin-right: 0;
+  color: #8fb4ff;
+  font-weight: 700;
+}
+
+.account-history-item .history-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.history-status-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #d6deea;
+  background: rgba(145, 158, 178, 0.2);
+}
+
+.history-status-completed {
+  color: #b9ffd1;
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.5);
+}
+
+.history-status-cancelled {
+  color: #ffc2c2;
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.5);
 }
 .auth-card a {
   color: var(--accent);
@@ -768,6 +888,32 @@ textarea {
 
 .provider-name-tooltip:before {
   border-top-color: rgba(255, 138, 31, 0.55) !important;
+}
+
+.map-user-popup .leaflet-popup-content-wrapper {
+  background: #151922;
+  color: #e8edf5;
+  border: 1px solid rgba(61, 212, 195, 0.4);
+  border-radius: 12px;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.4);
+}
+
+.map-user-popup .leaflet-popup-content {
+  margin: 10px 14px;
+  font-weight: 600;
+}
+
+.map-user-popup .leaflet-popup-tip {
+  background: #151922;
+  border: 1px solid rgba(61, 212, 195, 0.4);
+}
+
+.map-user-popup .leaflet-popup-close-button {
+  color: #aeb9cb;
+}
+
+.map-user-popup .leaflet-popup-close-button:hover {
+  color: #ffffff;
 }
 
 .marker-destination {
@@ -1760,6 +1906,10 @@ textarea {
     flex-direction: column;
     align-items: stretch;
   }
+
+  .how-it-works-cards {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (min-width: 761px) {
@@ -1776,4 +1926,241 @@ textarea {
     background: rgba(15, 17, 22, 0.92);
     backdrop-filter: blur(8px);
   }
+}
+
+.home-hero {
+  align-items: start;
+}
+
+.home-hero-image-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  width: min(100%, 454px);
+  justify-self: center;
+}
+
+.home-hero-image {
+  width: min(100%, 430px);
+  height: auto;
+  border-radius: 16px;
+  object-fit: cover;
+  background: transparent;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.home-hero-image-card .notice {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .account-section .account-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .home-hero {
+    align-items: stretch;
+  }
+}
+
+.home-image-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.home-image-card {
+  display: grid;
+  gap: 12px;
+}
+
+.home-image-card img {
+  width: 100%;
+  height: 180px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.how-it-works-cards {
+  position: relative;
+}
+
+.how-it-works-cards::before {
+  content: "";
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  top: 50%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 138, 31, 0),
+    rgba(255, 138, 31, 0.9),
+    rgba(255, 138, 31, 0)
+  );
+  z-index: 0;
+  pointer-events: none;
+}
+
+.how-it-works-cards .card {
+  position: relative;
+  z-index: 1;
+}
+
+.how-it-works-cards .card::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff8a1f;
+  box-shadow: 0 0 0 4px rgba(255, 138, 31, 0.18);
+}
+
+.home-page .card {
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.home-page .card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 138, 31, 0.45);
+  box-shadow: 0 20px 36px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 138, 31, 0.18) inset;
+}
+
+.home-page .btn.secondary:hover {
+  color: #111111;
+  border-color: #ff8a1f;
+}
+
+#register-form .btn[type="submit"] {
+  margin-top: 14px;
+}
+
+.faq-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.faq-wrap {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(16, 20, 28, 0.72);
+}
+
+.faq-wrap-title {
+  cursor: pointer;
+  font-size: 1.4rem;
+  font-weight: 700;
+  list-style: none;
+}
+
+.faq-wrap-title::-webkit-details-marker {
+  display: none;
+}
+
+.faq-wrap-title::after {
+  content: "+";
+  float: right;
+  color: #ffb26b;
+}
+
+.faq-wrap[open] .faq-wrap-title::after {
+  content: "-";
+}
+
+.faq-item {
+  padding: 14px 16px;
+}
+
+.faq-item summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-item summary::after {
+  content: "+";
+  float: right;
+  color: #ffb26b;
+  font-weight: 700;
+}
+
+.faq-item[open] summary::after {
+  content: "-";
+}
+
+.faq-answer {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease, opacity 0.25s ease;
+  opacity: 0;
+}
+
+.faq-answer > p {
+  overflow: hidden;
+  margin: 10px 0 0;
+}
+
+.faq-item[open] .faq-answer {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.site-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 30px;
+  padding: 26px 6vw 30px;
+  background: rgba(10, 12, 17, 0.65);
+}
+
+.site-footer-inner {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.site-footer-links {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.site-footer-links a {
+  color: #d7d7d7;
+}
+
+@media (max-width: 760px) {
+  .site-footer-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .how-it-works-cards {
+    grid-template-columns: 1fr;
+    padding-left: 20px;
+  }
+
+  .how-it-works-cards::before {
+    left: 10px;
+    right: auto;
+    top: 12px;
+    bottom: 12px;
+    width: 2px;
+    height: auto;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 138, 31, 0),
+      rgba(255, 138, 31, 0.9),
+      rgba(255, 138, 31, 0)
+    );
+  }
+
 }

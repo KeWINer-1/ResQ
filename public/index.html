@@ -1,16 +1,158 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="hu">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0; url=/map.html" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Atiranyitas...</title>
-    <script>
-      window.location.replace("/map.html");
-    </script>
+    <title>resq - Kezdőlap</title>
+    <link rel="icon" href="src/favicon.ico" />
+    <link rel="stylesheet" href="css/styles.css" />
   </head>
-  <body>
-    <p>Átirányítás a térkép oldalra...</p>
+  <body class="app-theme home-page">
+    <header>
+      <a class="brand" href="index.html">
+        <img src="src/logo.png" alt="resq logo" />
+      </a>
+      <button class="nav-toggle" type="button" aria-label="Menü">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="nav-links">
+        <a href="map.html">Térkép</a>
+        <a href="support.html" data-support-link>Ügyfélszolgálat</a>
+        <a href="rolunk.html">Rólunk</a>
+        <a href="auth.html" data-auth-link>Belépés</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero home-hero">
+        <div>
+          <h1>Gyors segítség az úton, egy helyen</h1>
+          <p>
+            A ResQ egy autómentő platform, ahol térképen választhatsz szolgáltatót, követheted a mentés állapotát,
+            és közvetlenül üzenhetsz az autómentőnek.
+          </p>
+          <div class="cta-row">
+            <a class="btn" href="map.html">Indítás a térképen</a>
+            <a class="btn secondary" href="auth.html">Fiók létrehozása</a>
+          </div>
+        </div>
+        <article class="hero-card home-hero-image-card">
+          <img
+            class="home-hero-image"
+            src="src/hero-automento-jofogas.jpg"
+            alt="Autómentő tréler"
+            loading="lazy"
+          />
+          <p class="notice">Valós idejű állapotkövetés és gyors kapcsolatfelvétel.</p>
+        </article>
+      </section>
+
+      <section class="section">
+        <h2>Hogyan működik?</h2>
+        <div class="cards how-it-works-cards">
+          <article class="card">
+            <h3>1. Add meg a helyzeted</h3>
+            <p class="notice">GPS vagy kézi cím alapján meghatározzuk, honnan induljon a mentő.</p>
+          </article>
+          <article class="card">
+            <h3>2. Válassz autómentőt</h3>
+            <p class="notice">Látod az adatokat, várható érkezést és a becsült díjat.</p>
+          </article>
+          <article class="card">
+            <h3>3. Kövesd a mentést</h3>
+            <p class="notice">Állapotfrissítés, üzenetküldés, majd értékelés a mentés végén.</p>
+          </article>
+          <article class="card">
+            <h3>4. Értékeld a szolgáltatást</h3>
+            <p class="notice">A mentés lezárása után csillaggal és szöveggel is visszajelezhetsz.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Hasznos tudnivalók indulás előtt</h2>
+        <div class="cards home-image-grid">
+          <article class="card home-image-card">
+            <img
+              src="https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?auto=format&fit=crop&w=900&q=80"
+              alt="Okostelefon térképpel"
+              loading="lazy"
+            />
+            <h3>Mit készíts elő?</h3>
+            <p class="notice">Jármű típusa, hiba rövid leírása, pontos helyszín és célcím.</p>
+          </article>
+          <article class="card home-image-card">
+            <img
+              src="https://images.unsplash.com/photo-1590362891991-f776e747a588?auto=format&fit=crop&w=900&q=80"
+              alt="Autómentő vontat munkavégzés közben"
+              loading="lazy"
+            />
+            <h3>Mikor kérj mentést?</h3>
+            <p class="notice">Defekt, lerobbanás, akkumulátorhiba vagy vontatás esetén.</p>
+          </article>
+          <article class="card home-image-card">
+            <img
+              src="https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=900&q=80"
+              alt="Éjszakai autózás biztonságos útviszonyok között"
+              loading="lazy"
+            />
+            <h3>Biztonság</h3>
+            <p class="notice">Forgalmas úton állj félre biztonságosan, és használd az elakadásjelzőt.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <details class="faq-wrap" open>
+          <summary class="faq-wrap-title">Gyakori kérdések</summary>
+          <div class="faq-list">
+            <details class="faq-item card" open>
+              <summary>Hogyan látom, hol tart a mentés?</summary>
+              <div class="faq-answer"><p class="notice">A térképes oldalon élő státuszfrissítéseket kapsz, a mentés teljes folyamatában.</p></div>
+            </details>
+            <details class="faq-item card">
+              <summary>Tudok üzenetet küldeni az autómentőnek?</summary>
+              <div class="faq-answer"><p class="notice">Igen, mentés közben közvetlen chat áll rendelkezésre.</p></div>
+            </details>
+            <details class="faq-item card">
+              <summary>Mi alapján számolja a rendszer a becsült díjat?</summary>
+              <div class="faq-answer"><p class="notice">A becsült díj az autómentő beállított díjai és az útvonal adatai alapján készül.</p></div>
+            </details>
+            <details class="faq-item card">
+              <summary>Le tudom mondani a mentést?</summary>
+              <div class="faq-answer"><p class="notice">Igen, amíg a mentés állapota engedi, a térképes felületen lemondható.</p></div>
+            </details>
+            <details class="faq-item card">
+              <summary>Hogyan tudok értékelést írni?</summary>
+              <div class="faq-answer"><p class="notice">A mentés lezárása után rögtön megjelenik az értékelési lehetőség.</p></div>
+            </details>
+            <details class="faq-item card">
+              <summary>Hol kérek admin segítséget?</summary>
+              <div class="faq-answer"><p class="notice">Az Ügyfélszolgálat menüpontban közvetlenül üzenhetsz az adminnak.</p></div>
+            </details>
+          </div>
+        </details>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer-inner">
+        <div>
+          <strong>ResQ</strong>
+          <p class="notice">Gyors autómentő keresés, valós idejű követés és egyszerű ügyintézés egy felületen.</p>
+        </div>
+        <div class="site-footer-links">
+          <strong>Gyors linkek</strong>
+          <a href="map.html">Térkép</a>
+          <a href="support.html">Ügyfélszolgálat</a>
+          <a href="rolunk.html">Rólunk</a>
+          <a href="auth.html">Belépés</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="js/common.js"></script>
   </body>
 </html>
-
