@@ -699,6 +699,16 @@ textarea {
   width: 100%;
 }
 
+.app-theme #provider-request-overlay .cta-row,
+.map-page #provider-request-overlay .cta-row {
+  flex-direction: column;
+}
+
+.app-theme #provider-request-overlay .cta-row .btn,
+.map-page #provider-request-overlay .cta-row .btn {
+  width: 100%;
+}
+
 .panel-header {
   display: flex;
   align-items: center;
