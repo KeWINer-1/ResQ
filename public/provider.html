@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>resq - Automento mod</title>
+    <title>resq - Autómentő mód</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -30,10 +30,10 @@
         <span></span>
       </button>
       <nav class="nav-links">
-        <a href="index.html">Kezdolap</a>
-        <a href="map.html">Terkep</a>
-        <a href="support.html" data-support-link>Uzenet adminnak</a>
-        <a href="auth.html" data-auth-link>Belepes</a>
+        <a href="index.html">Kezdőlap</a>
+        <a href="map.html">Térkép</a>
+        <a href="support.html" data-support-link>Üzenet adminnak</a>
+        <a href="auth.html" data-auth-link>Belépés</a>
       </nav>
     </header>
 
@@ -41,21 +41,21 @@
       <aside class="sidebar">
         <div class="sheet-grip" id="mobile-sheet-grip"></div>
         <div class="sidebar-header">
-          <h2>Automento dashboard</h2>
+          <h2>Autómentő dashboard</h2>
           <button class="back-button" id="provider-mobile-back" type="button" aria-label="Vissza">&larr;</button>
         </div>
-        <p class="notice" id="provider-status">Belepes szukseges.</p>
+        <p class="notice" id="provider-status">Belépés szükséges.</p>
         <p class="notice" id="provider-location-message"></p>
 
         <div class="card" id="provider-request-card" style="margin-bottom: 12px;">
           <div class="request-header">
-            <strong id="provider-request-title">Aktiv keres</strong>
-            <span class="status-pill" id="provider-request-status-pill">Varakozas</span>
+            <strong id="provider-request-title">Aktív kérés</strong>
+            <span class="status-pill" id="provider-request-status-pill">Várakozás</span>
           </div>
-          <p class="notice" id="provider-request-sub">Nincs aktiv keres.</p>
+          <p class="notice" id="provider-request-sub">Nincs aktív kérés.</p>
           <div class="request-metrics">
             <div class="metric">
-              <div class="metric-label">Tavolsag</div>
+              <div class="metric-label">Távolság</div>
               <div class="metric-value" id="provider-request-distance">-</div>
             </div>
             <div class="metric">
@@ -63,7 +63,7 @@
               <div class="metric-value" id="provider-request-eta">-</div>
             </div>
             <div class="metric">
-              <div class="metric-label">Becsult dij</div>
+              <div class="metric-label">Becsült díj</div>
               <div class="metric-value" id="provider-request-price">-</div>
             </div>
           </div>
@@ -71,16 +71,16 @@
           <p class="notice" id="provider-request-notes"></p>
           <div class="cta-row request-actions" id="provider-request-actions">
             <button class="btn secondary" id="provider-request-accept" type="button">Elfogadom</button>
-            <button class="btn secondary" id="provider-request-reject" type="button">Elutasitas</button>
+            <button class="btn secondary" id="provider-request-reject" type="button">Elutasítás</button>
           </div>
           <div class="cta-row request-actions" id="provider-request-progress" style="display: none;">
-            <button class="btn secondary" id="provider-request-enroute" type="button">Uton</button>
-            <button class="btn secondary" id="provider-request-arrived" type="button">Megerkeztem</button>
-            <button class="btn" id="provider-request-completed" type="button">Kesz</button>
+            <button class="btn secondary" id="provider-request-enroute" type="button">Úton</button>
+            <button class="btn secondary" id="provider-request-arrived" type="button">Megérkeztem</button>
+            <button class="btn" id="provider-request-completed" type="button">Kész</button>
             <button class="btn secondary" id="provider-request-cancel" type="button">Lemond</button>
           </div>
           <div class="cta-row" id="provider-request-chat-cta">
-            <button class="btn secondary" id="provider-request-chat" type="button">Uzenet</button>
+            <button class="btn secondary" id="provider-request-chat" type="button">Üzenet</button>
           </div>
         </div>
 
@@ -89,49 +89,49 @@
             <span class="status-pill" id="online-pill">Offline</span>
             <button class="btn" id="toggle-online">Online/Offline</button>
           </div>
-          <p class="notice">Online modban 20 masodpercenkent frissitjuk a poziciodat.</p>
+          <p class="notice">Online módban 20 másodpercenként frissítjük a pozíciódat.</p>
         </div>
 
         <div class="card" id="provider-location-card" style="margin-top: 12px;">
           <div class="split">
             <div>
-              <label>Kezi pozicio (lat)</label>
+              <label>Kézi pozíció (lat)</label>
               <input id="manual-lat" type="number" step="0.000001" placeholder="47.4979" />
             </div>
             <div>
-              <label>Kezi pozicio (lng)</label>
+              <label>Kézi pozíció (lng)</label>
               <input id="manual-lng" type="number" step="0.000001" placeholder="19.0402" />
             </div>
           </div>
           <div class="cta-row" style="margin-top: 12px;">
-            <button class="btn secondary" id="save-location" type="button">Pozicio mentese</button>
+            <button class="btn secondary" id="save-location" type="button">Pozíció mentése</button>
           </div>
         </div>
 
         <div class="card" style="margin-top: 12px;">
-          <h3>Uzenetek a felhasznaloval</h3>
-          <p class="notice" id="provider-chat-hint">Valassz egy kerest az uzenetkuldeshez.</p>
+          <h3>Üzenetek a felhasználóval</h3>
+          <p class="notice" id="provider-chat-hint">Válassz egy kérést az üzenetküldéshez.</p>
           <div class="chat-box" id="provider-chat-box"></div>
           <div class="chat-input-row">
-            <textarea id="provider-chat-input" rows="2" placeholder="Irj a felhasznalonak..."></textarea>
-            <button class="btn" id="provider-chat-send" type="button">Kuld</button>
+            <textarea id="provider-chat-input" rows="2" placeholder="Írj a felhasználónak..."></textarea>
+            <button class="btn" id="provider-chat-send" type="button">Küld</button>
           </div>
         </div>
       </aside>
       <div class="map-wrap">
         <div id="provider-map" class="map"></div>
-        <button class="btn secondary mobile-toggle" id="mobile-list-toggle" type="button">Vezerlok</button>
+        <button class="btn secondary mobile-toggle" id="mobile-list-toggle" type="button">Vezérlők</button>
         <div class="map-overlay" id="provider-request-overlay" style="display: none;">
           <div class="panel-header">
             <div class="panel-avatar" id="provider-overlay-avatar">KR</div>
             <div class="panel-title-wrap">
-              <div class="panel-title" id="provider-overlay-title">Keres</div>
-              <div class="panel-sub" id="provider-overlay-sub">Varakozas</div>
+              <div class="panel-title" id="provider-overlay-title">Kérés</div>
+              <div class="panel-sub" id="provider-overlay-sub">Várakozás</div>
             </div>
             <button class="panel-close" id="provider-overlay-close" type="button">&times;</button>
           </div>
           <div class="panel-row">
-            <span class="panel-label">Tavolsag</span>
+            <span class="panel-label">Távolság</span>
             <span class="panel-value" id="provider-overlay-distance">-</span>
           </div>
           <div class="panel-row">
@@ -139,23 +139,23 @@
             <span class="panel-value" id="provider-overlay-eta">-</span>
           </div>
           <div class="panel-row">
-            <span class="panel-label">Becsult dij</span>
+            <span class="panel-label">Becsült díj</span>
             <span class="panel-value price" id="provider-overlay-price">-</span>
           </div>
           <div class="panel-row">
-            <span class="panel-label">Cim</span>
+            <span class="panel-label">Cím</span>
             <span class="panel-value" id="provider-overlay-address">-</span>
           </div>
           <div class="cta-row panel-actions" id="provider-overlay-actions" style="margin-top: 12px;">
             <button class="btn" id="provider-overlay-accept" type="button">Elfogadom</button>
-            <button class="btn secondary" id="provider-overlay-reject" type="button">Elutasitas</button>
+            <button class="btn secondary" id="provider-overlay-reject" type="button">Elutasítás</button>
           </div>
           <div class="cta-row panel-actions" id="provider-overlay-progress" style="margin-top: 12px; display: none;">
-            <button class="btn secondary" id="provider-overlay-enroute" type="button">Uton</button>
-            <button class="btn secondary" id="provider-overlay-arrived" type="button">Megerkeztem</button>
-            <button class="btn" id="provider-overlay-completed" type="button">Kesz</button>
+            <button class="btn secondary" id="provider-overlay-enroute" type="button">Úton</button>
+            <button class="btn secondary" id="provider-overlay-arrived" type="button">Megérkeztem</button>
+            <button class="btn" id="provider-overlay-completed" type="button">Kész</button>
             <button class="btn secondary" id="provider-overlay-cancel" type="button">Lemond</button>
-            <button class="btn secondary" id="provider-overlay-chat" type="button">Uzenet</button>
+            <button class="btn secondary" id="provider-overlay-chat" type="button">Üzenet</button>
           </div>
         </div>
         <div id="status-toast" class="toast"></div>

@@ -95,11 +95,11 @@ const routeCache = new Map();
 function jobStatusLabel(status) {
   if (!status) return null;
   const labels = {
-    new: "Uj keres",
+    new: "Új kérés",
     accepted: "Elfogadva",
-    enroute: "Uton van",
-    arrived: "Megerkezett",
-    completed: "Kesz",
+    enroute: "Úton van",
+    arrived: "Megérkezett",
+    completed: "Kész",
     cancelled: "Lemondva"
   };
   return labels[status] || status;
@@ -402,9 +402,9 @@ function buildRequestAddress(req) {
   return "";
 }
 function setRequestUiDefaults() {
-  if (providerRequestTitle) providerRequestTitle.textContent = "Aktiv keres";
+  if (providerRequestTitle) providerRequestTitle.textContent = "Aktív kérés";
   if (providerRequestStatusPill) providerRequestStatusPill.textContent = "Varakozas";
-  if (providerRequestSub) providerRequestSub.textContent = "Nincs aktiv keres.";
+  if (providerRequestSub) providerRequestSub.textContent = "Nincs aktív kérés.";
   if (providerRequestDistance) providerRequestDistance.textContent = "-";
   if (providerRequestEta) providerRequestEta.textContent = "-";
   if (providerRequestPrice) providerRequestPrice.textContent = "-";
@@ -437,7 +437,7 @@ function updateRequestUi(request) {
   const statusLabel = jobStatusLabel(statusValue) || statusValue;
   const problemType = request.ProblemType || request.problemType || "ismeretlen";
 
-  if (providerRequestTitle) providerRequestTitle.textContent = `Keres #${request.Id}`;
+  if (providerRequestTitle) providerRequestTitle.textContent = `Kérés #${request.Id}`;
   if (providerRequestStatusPill) providerRequestStatusPill.textContent = statusLabel;
   if (providerRequestSub) providerRequestSub.textContent = `${problemType} | ${statusLabel}`;
   if (providerRequestAddress) providerRequestAddress.textContent = buildRequestAddress(request);
@@ -469,7 +469,7 @@ function updateRequestUi(request) {
     providerOverlay.style.display = "block";
   }
   if (providerOverlayAvatar) providerOverlayAvatar.textContent = `#${request.Id}`;
-  if (providerOverlayTitle) providerOverlayTitle.textContent = `Keres #${request.Id}`;
+  if (providerOverlayTitle) providerOverlayTitle.textContent = `Kérés #${request.Id}`;
   if (providerOverlaySub) providerOverlaySub.textContent = statusLabel;
   if (providerOverlayAddress) providerOverlayAddress.textContent = buildRequestAddress(request) || "-";
 
@@ -500,7 +500,7 @@ function renderChatMessages(messages) {
   if (!providerChatBox) return;
   const myUserId = getMyUserId();
   if (!messages || messages.length === 0) {
-    providerChatBox.innerHTML = "<p class=\"notice\">Nincs uzenet.</p>";
+    providerChatBox.innerHTML = "<p class=\"notice\">Nincs üzenet.</p>";
     return;
   }
 
@@ -556,8 +556,8 @@ function selectRequest(requestId) {
   if (providerChatHint) {
     const statusText = request?.JobStatus || request?.Status || "";
     providerChatHint.textContent = requestId
-      ? `Uzenet kuldese: #${requestId}${statusText ? ` (${statusText})` : ""}`
-      : "Valassz egy kerest az uzenetkuldeshez.";
+      ? `Üzenet küldése: #${requestId}${statusText ? ` (${statusText})` : ""}`
+      : "Válassz egy kérést az üzenetküldéshez.";
   }
   startChatPolling();
   loadChatMessages();
@@ -628,7 +628,7 @@ function updateStatus() {
     onlinePill.style.background = isOnline ? "#fbe7d5" : "#ececec";
   }
   if (statusEl) {
-    statusEl.textContent = isOnline ? "Elerheto vagy." : "Offline modban vagy.";
+    statusEl.textContent = isOnline ? "Elérhető vagy." : "Offline módban vagy.";
   }
 }
 
@@ -908,8 +908,8 @@ async function loadRequests() {
     }
 
     if (String(activeReq.Id) !== String(lastProviderRequestId)) {
-      showToast(`Uj keres erkezett: #${activeReq.Id}`);
-      notifyProvider("Uj keres", `#${activeReq.Id}`);
+      showToast(`Új kérés érkezett: #${activeReq.Id}`);
+      notifyProvider("Új kérés", `#${activeReq.Id}`);
       lastProviderJobStatus = null;
       lastProviderRequestId = activeReq.Id;
     }
@@ -917,7 +917,7 @@ async function loadRequests() {
     if (jobStatus && jobStatus !== lastProviderJobStatus) {
       const label = jobStatusLabel(jobStatus) || jobStatus;
       showToast(`Statusz: ${label}`);
-      notifyProvider("Keres statusz frissult", label);
+      notifyProvider("Kérés státusz frissült", label);
       lastProviderJobStatus = jobStatus;
     }
 
