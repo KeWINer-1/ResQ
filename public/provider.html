@@ -30,9 +30,10 @@
         <span></span>
       </button>
       <nav class="nav-links">
-        <a href="index.html">Kezdőlap</a>
         <a href="map.html">Térkép</a>
-        <a href="support.html" data-support-link>Üzenet adminnak</a>
+        <a href="automento.html" data-provider-link>Autómentő mód</a>
+        <a href="support.html" data-support-link>Ügyfélszolgálat</a>
+        <a href="rolunk.html">Rólunk</a>
         <a href="auth.html" data-auth-link>Belépés</a>
       </nav>
     </header>
@@ -46,6 +47,14 @@
         </div>
         <p class="notice" id="provider-status">Belépés szükséges.</p>
         <p class="notice" id="provider-location-message"></p>
+
+        <div class="card" id="provider-status-card" style="margin-bottom: 12px;">
+          <div class="top-actions">
+            <span class="status-pill" id="online-pill">Offline</span>
+            <button class="btn" id="toggle-online">Online/Offline</button>
+          </div>
+          <p class="notice">Online módban 20 másodpercenként frissítjük a pozíciódat.</p>
+        </div>
 
         <div class="card" id="provider-request-card" style="margin-bottom: 12px;">
           <div class="request-header">
@@ -84,28 +93,12 @@
           </div>
         </div>
 
-        <div class="card" id="provider-status-card">
-          <div class="top-actions">
-            <span class="status-pill" id="online-pill">Offline</span>
-            <button class="btn" id="toggle-online">Online/Offline</button>
-          </div>
-          <p class="notice">Online módban 20 másodpercenként frissítjük a pozíciódat.</p>
-        </div>
-
         <div class="card" id="provider-location-card" style="margin-top: 12px;">
-          <div class="split">
-            <div>
-              <label>Kézi pozíció (lat)</label>
-              <input id="manual-lat" type="number" step="0.000001" placeholder="47.4979" />
-            </div>
-            <div>
-              <label>Kézi pozíció (lng)</label>
-              <input id="manual-lng" type="number" step="0.000001" placeholder="19.0402" />
-            </div>
+          <h3>Pozíció beállítása</h3>
+          <div class="cta-row" style="margin-top: 10px;">
+            <button class="btn secondary" id="provider-use-current-location" type="button">Saját hely használata</button>
           </div>
-          <div class="cta-row" style="margin-top: 12px;">
-            <button class="btn secondary" id="save-location" type="button">Pozíció mentése</button>
-          </div>
+          <p class="notice" id="provider-location-selected">Még nincs kijelölt pozíció.</p>
         </div>
 
         <div class="card" style="margin-top: 12px;">
@@ -120,6 +113,9 @@
       </aside>
       <div class="map-wrap">
         <div id="provider-map" class="map"></div>
+        <button class="map-center-btn" id="provider-map-center-btn" type="button" aria-label="Térkép középre igazítása">
+          <span>➤</span>
+        </button>
         <button class="btn secondary mobile-toggle" id="mobile-list-toggle" type="button">Vezérlők</button>
         <div class="map-overlay" id="provider-request-overlay" style="display: none;">
           <div class="panel-header">

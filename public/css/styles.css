@@ -340,6 +340,11 @@ header {
   align-items: stretch;
 }
 
+.account-section .account-layout.account-layout-single {
+  grid-template-columns: minmax(320px, 560px);
+  justify-content: center;
+}
+
 .account-section .account-layout .form-card {
   margin: 0;
   max-width: none;
@@ -2148,6 +2153,72 @@ textarea {
   color: #d7d7d7;
 }
 
+.automento-page .automento-section {
+  width: min(1100px, 92vw);
+  margin: 0 auto;
+}
+
+.automento-page .automento-card {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 28px;
+}
+
+.automento-page .automento-block {
+  margin-top: 16px;
+  border-radius: 18px;
+}
+
+.automento-page .automento-block h3 {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.automento-page .avg-stars-row {
+  margin-top: 8px;
+}
+
+.automento-page #provider-ratings-toggle {
+  margin-top: 12px;
+}
+
+.automento-page .provider-ratings-panel {
+  margin-top: 12px;
+}
+
+.automento-page #provider-ratings-list {
+  display: grid;
+  gap: 10px;
+}
+
+.automento-page #provider-history-list {
+  max-height: 460px;
+  overflow-y: auto;
+}
+
+.automento-page .request-metrics {
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+}
+
+.automento-page .metric {
+  min-height: 108px;
+}
+
+.automento-page .metric-value {
+  font-size: 2rem;
+  line-height: 1.05;
+}
+
+.automento-page .metric:first-child .metric-value {
+  font-size: 2.2rem;
+}
+
+.automento-page .automento-actions {
+  margin-top: 14px;
+}
+
 @media (max-width: 760px) {
   .site-footer-inner {
     grid-template-columns: 1fr;
@@ -2173,4 +2244,24 @@ textarea {
     );
   }
 
+  .automento-page .automento-section {
+    width: 100%;
+  }
+
+  .automento-page .automento-card {
+    padding: 18px;
+  }
+
+  .automento-page .request-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .automento-page .metric {
+    min-height: auto;
+  }
+
+  .automento-page .metric-value,
+  .automento-page .metric:first-child .metric-value {
+    font-size: 1.9rem;
+  }
 }

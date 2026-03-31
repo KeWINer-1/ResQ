@@ -16,6 +16,7 @@ const adminLogoutBtn = document.getElementById("admin-logout-btn");
 const historyCardEl = document.getElementById("account-history-card");
 const historySummaryEl = document.getElementById("account-history-summary");
 const historyListEl = document.getElementById("account-history-list");
+const accountLayoutEl = document.querySelector(".account-layout");
 
 let currentProfile = null;
 let isEditMode = false;
@@ -114,6 +115,12 @@ function statusLabel(status) {
   return status || "Ismeretlen";
 }
 
+function formatCurrency(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "Nincs adat";
+  return `${Math.round(n).toLocaleString("hu-HU")} Ft`;
+}
+
 function extractDestinationFromNotes(notes) {
   const value = String(notes || "");
   const marker = "__DESTINATION__:";
@@ -138,6 +145,7 @@ function renderHistory(items) {
       const toAddress = extractDestinationFromNotes(item?.Notes);
       const problem = item?.ProblemType || "Nincs megadva hiba";
       const provider = item?.ProviderName || "Még nincs hozzárendelve";
+      const estimatedPrice = formatCurrency(item?.EstimatedPrice);
       const created = formatDateTime(item?.CreatedAt);
       const status = statusLabel(item?.JobStatus || item?.Status);
       const statusKey = String(item?.JobStatus || item?.Status || "").toLowerCase();
@@ -149,6 +157,7 @@ function renderHistory(items) {
           <p class="history-row"><strong>Indulás:</strong><span>${fromAddress}</span></p>
           <p class="history-row"><strong>Cél:</strong><span>${toAddress || "Nincs megadva célcím"}</span></p>
           <p class="history-row"><strong>Hiba:</strong><span>${problem}</span></p>
+          <p class="history-row"><strong>Becsült ár:</strong><span>${estimatedPrice}</span></p>
           <p class="history-row"><strong>Autómentő:</strong><span>${provider}</span></p>
         </article>
       `;
@@ -183,6 +192,7 @@ async function loadAccount() {
     const profile = await getMyProfile();
     currentProfile = profile;
     if (profile?.role === "Admin") {
+      if (accountLayoutEl) accountLayoutEl.classList.add("account-layout-single");
       if (detailsEl) detailsEl.style.display = "none";
       if (adminProfileEl) adminProfileEl.style.display = "block";
       if (historyCardEl) historyCardEl.style.display = "none";
@@ -192,7 +202,13 @@ async function loadAccount() {
       if (detailsEl) detailsEl.style.display = "block";
       if (adminProfileEl) adminProfileEl.style.display = "none";
       setEditMode(false);
-      await loadHistory();
+      if (profile?.role === "User") {
+        if (accountLayoutEl) accountLayoutEl.classList.remove("account-layout-single");
+        await loadHistory();
+      } else if (historyCardEl) {
+        historyCardEl.style.display = "none";
+        if (accountLayoutEl) accountLayoutEl.classList.add("account-layout-single");
+      }
     }
     showAlert("");
     messageEl.textContent = "";

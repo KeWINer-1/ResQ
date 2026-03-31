@@ -187,7 +187,7 @@ router.get("/me", authRequired, requireRole("User"), async (req, res) => {
       .request()
       .input("userId", sql.Int, req.user.userId)
       .query(
-        "SELECT r.Id, r.PickupLat, r.PickupLng, r.PickupAddress, r.DestinationLat, r.DestinationLng, r.DestinationAddress, r.ProblemType, r.Notes, r.Status, r.CreatedAt, r.SelectedProviderId, p.Name AS ProviderName, p.Phone AS ProviderPhone, j.Status AS JobStatus FROM ServiceRequests r LEFT JOIN Providers p ON p.Id = r.SelectedProviderId LEFT JOIN Jobs j ON j.RequestId = r.Id AND j.ProviderId = r.SelectedProviderId WHERE r.UserId = @userId ORDER BY r.CreatedAt DESC"
+        "SELECT r.Id, r.PickupLat, r.PickupLng, r.PickupAddress, r.DestinationLat, r.DestinationLng, r.DestinationAddress, r.ProblemType, r.Notes, r.Status, r.CreatedAt, r.SelectedProviderId, p.Name AS ProviderName, p.Phone AS ProviderPhone, j.Status AS JobStatus, o.OfferedPrice AS EstimatedPrice FROM ServiceRequests r LEFT JOIN Providers p ON p.Id = r.SelectedProviderId LEFT JOIN Jobs j ON j.RequestId = r.Id AND j.ProviderId = r.SelectedProviderId OUTER APPLY (SELECT TOP 1 OfferedPrice FROM Offers WHERE RequestId = r.Id AND ProviderId = r.SelectedProviderId AND Status = 'accepted' ORDER BY UpdatedAt DESC, Id DESC) o WHERE r.UserId = @userId ORDER BY r.CreatedAt DESC"
       );
 
     return res.json(result.recordset);
@@ -203,7 +203,7 @@ router.get("/provider", authRequired, requireRole("Provider"), async (req, res) 
       .request()
       .input("providerId", sql.Int, req.user.providerId)
       .query(
-        "SELECT r.Id, r.PickupLat, r.PickupLng, r.PickupAddress, r.DestinationLat, r.DestinationLng, r.DestinationAddress, r.ProblemType, r.Notes, r.Status, r.CreatedAt, j.Status AS JobStatus FROM ServiceRequests r LEFT JOIN Jobs j ON j.RequestId = r.Id AND j.ProviderId = r.SelectedProviderId WHERE r.SelectedProviderId = @providerId ORDER BY r.CreatedAt DESC"
+        "SELECT r.Id, r.PickupLat, r.PickupLng, r.PickupAddress, r.DestinationLat, r.DestinationLng, r.DestinationAddress, r.ProblemType, r.Notes, r.Status, r.CreatedAt, j.Status AS JobStatus, o.OfferedPrice AS EstimatedPrice FROM ServiceRequests r LEFT JOIN Jobs j ON j.RequestId = r.Id AND j.ProviderId = r.SelectedProviderId OUTER APPLY (SELECT TOP 1 OfferedPrice FROM Offers WHERE RequestId = r.Id AND ProviderId = r.SelectedProviderId AND Status = 'accepted' ORDER BY UpdatedAt DESC, Id DESC) o WHERE r.SelectedProviderId = @providerId ORDER BY r.CreatedAt DESC"
       );
 
     return res.json(result.recordset);
