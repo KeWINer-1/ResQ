@@ -2,14 +2,15 @@
 const locationMessageEl = document.getElementById("provider-location-message");
 const onlinePill = document.getElementById("online-pill");
 const toggleBtn = document.getElementById("toggle-online");
-const manualLatEl = document.getElementById("manual-lat");
-const manualLngEl = document.getElementById("manual-lng");
-const saveLocationBtn = document.getElementById("save-location");
+const providerUseCurrentLocationBtn = document.getElementById("provider-use-current-location");
+const providerLocationSelectedEl = document.getElementById("provider-location-selected");
 const providerChatHint = document.getElementById("provider-chat-hint");
 const providerChatBox = document.getElementById("provider-chat-box");
 const providerChatInput = document.getElementById("provider-chat-input");
 const providerChatSend = document.getElementById("provider-chat-send");
+const providerChatCard = providerChatBox?.closest(".card") || null;
 const providerMapEl = document.getElementById("provider-map");
+const providerMapCenterBtn = document.getElementById("provider-map-center-btn");
 const statusToast = document.getElementById("status-toast");
 const sidebarEl = document.querySelector(".sidebar");
 
@@ -19,6 +20,7 @@ const providerRequestSub = document.getElementById("provider-request-sub");
 const providerRequestDistance = document.getElementById("provider-request-distance");
 const providerRequestEta = document.getElementById("provider-request-eta");
 const providerRequestPrice = document.getElementById("provider-request-price");
+const providerRequestMetrics = document.querySelector("#provider-request-card .request-metrics");
 const providerRequestAddress = document.getElementById("provider-request-address");
 const providerRequestNotes = document.getElementById("provider-request-notes");
 const providerRequestActions = document.getElementById("provider-request-actions");
@@ -30,6 +32,7 @@ const providerRequestArrived = document.getElementById("provider-request-arrived
 const providerRequestCompleted = document.getElementById("provider-request-completed");
 const providerRequestCancel = document.getElementById("provider-request-cancel");
 const providerRequestChat = document.getElementById("provider-request-chat");
+const providerRequestChatCta = document.getElementById("provider-request-chat-cta");
 
 const providerOverlay = document.getElementById("provider-request-overlay");
 const providerOverlayAvatar = document.getElementById("provider-overlay-avatar");
@@ -88,6 +91,7 @@ let lastRenderedRequestId = null;
 let userInteractedAt = 0;
 let lastAutoFitAt = 0;
 let lastAutoFitRequestId = null;
+let didInitialProviderCenter = false;
 const fallbackLocation = { lat: 47.4979, lng: 19.0402 };
 const manualProviderLocationStorageKey = "resq_manual_provider_location";
 const activeProviderRequestStorageKey = "resq_provider_active_request";
@@ -248,13 +252,13 @@ function initMap(lat, lng) {
     [-85, -180],
     [85, 180]
   ];
-  map = L.map("provider-map", { maxBounds, maxBoundsViscosity: 1.0 }).setView(
+  map = L.map("provider-map", { maxBounds, maxBoundsViscosity: 1.0, minZoom: 7 }).setView(
     [lat, lng],
     13
   );
   L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
     maxZoom: 19,
-    minZoom: 11,
+    minZoom: 7,
     noWrap: true,
     worldCopyJump: true,
     attribution: "&copy; OpenStreetMap &copy; CARTO"
@@ -266,16 +270,22 @@ function initMap(lat, lng) {
   map.on("dragstart", () => {
     userInteractedAt = Date.now();
   });
+  map.on("moveend zoomend", updateProviderMapCenterButtonState);
 
   providerMarker = L.marker([lat, lng], { icon: createProviderIcon() })
     .addTo(map)
-    .bindPopup("Te itt vagy");
+    .bindPopup("Saját pozíciód", { className: "map-user-popup" });
+
+  updateProviderMapCenterButtonState();
 }
 
 function createProviderIcon() {
   return L.divIcon({
     className: "provider-marker",
-    html: "<div class=\"marker marker-user\"><span>\ud83d\udc64</span></div>"
+    html: "<div class=\"marker marker-user\"><span>\ud83d\udc64</span></div>",
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -18]
   });
 }
 
@@ -303,11 +313,35 @@ function updateProviderMarker(lat, lng) {
   if (!providerMarker) {
     providerMarker = L.marker([lat, lng], { icon: createProviderIcon() })
       .addTo(map)
-      .bindPopup("Te itt vagy");
+      .bindPopup("Saját pozíciód", { className: "map-user-popup" });
   } else {
     providerMarker.setLatLng([lat, lng]);
   }
+  if (!didInitialProviderCenter && map) {
+    map.setView([lat, lng], Math.max(map.getZoom(), 13), { animate: false });
+    didInitialProviderCenter = true;
+  }
+  updateProviderMapCenterButtonState();
   refreshActiveRoute();
+}
+
+function isProviderCenteredOnMap() {
+  if (!map || !providerCoords) return false;
+  const center = map.getCenter();
+  const distanceKm = haversineKm(center.lat, center.lng, providerCoords.lat, providerCoords.lng);
+  return distanceKm <= 0.05;
+}
+
+function updateProviderMapCenterButtonState() {
+  if (!providerMapCenterBtn) return;
+  providerMapCenterBtn.classList.toggle("is-centered", isProviderCenteredOnMap());
+}
+
+function centerMapToProvider() {
+  if (!map || !providerCoords) return;
+  const targetZoom = Math.max(map.getZoom(), 14);
+  map.setView([providerCoords.lat, providerCoords.lng], targetZoom, { animate: true });
+  updateProviderMapCenterButtonState();
 }
 
 function clearMapOverlays() {
@@ -402,17 +436,57 @@ function buildRequestAddress(req) {
   return "";
 }
 function setRequestUiDefaults() {
-  if (providerRequestTitle) providerRequestTitle.textContent = "Aktív kérés";
-  if (providerRequestStatusPill) providerRequestStatusPill.textContent = "Varakozas";
-  if (providerRequestSub) providerRequestSub.textContent = "Nincs aktív kérés.";
+  if (providerRequestTitle) {
+    providerRequestTitle.textContent = isOnline
+      ? "Hamarosan feladat várható."
+      : "Legyél online a feladatokért!";
+  }
+  if (providerRequestStatusPill) providerRequestStatusPill.textContent = "Várakozás";
+  if (providerRequestStatusPill) {
+    providerRequestStatusPill.style.display = isOnline ? "inline-flex" : "none";
+  }
+  if (providerRequestSub) providerRequestSub.textContent = "";
   if (providerRequestDistance) providerRequestDistance.textContent = "-";
   if (providerRequestEta) providerRequestEta.textContent = "-";
   if (providerRequestPrice) providerRequestPrice.textContent = "-";
   if (providerRequestAddress) providerRequestAddress.textContent = "";
   if (providerRequestNotes) providerRequestNotes.textContent = "";
+  if (providerRequestMetrics) providerRequestMetrics.style.display = "none";
   if (providerRequestActions) providerRequestActions.style.display = "none";
   if (providerRequestProgress) providerRequestProgress.style.display = "none";
+  if (providerRequestChatCta) providerRequestChatCta.style.display = "none";
+  if (providerChatCard) providerChatCard.style.display = "none";
   if (providerOverlay) providerOverlay.style.display = "none";
+}
+
+async function reverseGeocode(lat, lng) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(
+      lat
+    )}&lon=${encodeURIComponent(lng)}&zoom=16`;
+    const response = await fetch(url, {
+      headers: { "Accept-Language": "hu" }
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const displayName = String(data?.display_name || "").trim();
+    return displayName || null;
+  } catch {
+    return null;
+  }
+}
+
+async function setManualLocationFields(lat, lng) {
+  const fallbackText = `Kijelölt pozíció: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  if (providerLocationSelectedEl) {
+    providerLocationSelectedEl.textContent = fallbackText;
+  }
+  const address = await reverseGeocode(lat, lng);
+  if (providerLocationSelectedEl) {
+    providerLocationSelectedEl.textContent = address
+      ? `Kijelölt hely: ${address}`
+      : fallbackText;
+  }
 }
 
 function updateRequestUi(request) {
@@ -437,9 +511,11 @@ function updateRequestUi(request) {
   const statusLabel = jobStatusLabel(statusValue) || statusValue;
   const problemType = request.ProblemType || request.problemType || "ismeretlen";
 
-  if (providerRequestTitle) providerRequestTitle.textContent = `Kérés #${request.Id}`;
+  if (providerRequestTitle) providerRequestTitle.textContent = `Aktív kérés #${request.Id}`;
   if (providerRequestStatusPill) providerRequestStatusPill.textContent = statusLabel;
+  if (providerRequestStatusPill) providerRequestStatusPill.style.display = "inline-flex";
   if (providerRequestSub) providerRequestSub.textContent = `${problemType} | ${statusLabel}`;
+  if (providerRequestMetrics) providerRequestMetrics.style.display = "grid";
   if (providerRequestAddress) providerRequestAddress.textContent = buildRequestAddress(request);
 
   const noteText = request.Notes || request.notes || "";
@@ -463,6 +539,12 @@ function updateRequestUi(request) {
   }
   if (providerRequestChat) {
     providerRequestChat.style.display = request ? "inline-flex" : "none";
+  }
+  if (providerRequestChatCta) {
+    providerRequestChatCta.style.display = request ? "flex" : "none";
+  }
+  if (providerChatCard) {
+    providerChatCard.style.display = "block";
   }
 
   if (providerOverlay) {
@@ -597,8 +679,7 @@ async function loadProfile() {
     const savedManualLocation = loadManualProviderLocation();
     if (savedManualLocation) {
       manualLocationOverride = true;
-      if (manualLatEl) manualLatEl.value = String(savedManualLocation.lat);
-      if (manualLngEl) manualLngEl.value = String(savedManualLocation.lng);
+      setManualLocationFields(savedManualLocation.lat, savedManualLocation.lng);
       updateProviderMarker(savedManualLocation.lat, savedManualLocation.lng);
       setLocationMessage("Kezileg mentett pozicio aktiv.");
       stopLocationUpdates();
@@ -625,10 +706,14 @@ async function loadProfile() {
 function updateStatus() {
   if (onlinePill) {
     onlinePill.textContent = isOnline ? "Online" : "Offline";
-    onlinePill.style.background = isOnline ? "#fbe7d5" : "#ececec";
+    onlinePill.classList.toggle("is-online", isOnline);
+    onlinePill.classList.toggle("is-offline", !isOnline);
   }
   if (statusEl) {
     statusEl.textContent = isOnline ? "Elérhető vagy." : "Offline módban vagy.";
+  }
+  if (!activeRequest) {
+    setRequestUiDefaults();
   }
 }
 
@@ -1015,6 +1100,8 @@ providerMobileBack?.addEventListener("click", () => {
   setSheetExpanded(false);
 });
 
+providerMapCenterBtn?.addEventListener("click", centerMapToProvider);
+
 toggleBtn?.addEventListener("click", toggleOnline);
 
 if (!getToken()) {
@@ -1025,23 +1112,31 @@ if (!getToken()) {
   startRequestsPolling();
 }
 
-saveLocationBtn?.addEventListener("click", async () => {
-  const lat = parseFloat(manualLatEl?.value || "");
-  const lng = parseFloat(manualLngEl?.value || "");
-  if (Number.isNaN(lat) || Number.isNaN(lng)) {
-    setLocationMessage("Adj meg ervenyes lat/lng ertekeket.");
+providerUseCurrentLocationBtn?.addEventListener("click", () => {
+  if (!navigator.geolocation) {
+    setLocationMessage("A böngésző nem támogatja a helymeghatározást.");
     return;
   }
-  try {
-    manualLocationOverride = true;
-    saveManualProviderLocation(lat, lng);
-    stopLocationUpdates();
-    await sendLocation(lat, lng);
-    updateProviderMarker(lat, lng);
-    setLocationMessage("Pozicio mentve.");
-  } catch (err) {
-    setLocationMessage(err.message || "Nem sikerult menteni a poziciot.");
-  }
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      await setManualLocationFields(lat, lng);
+      manualLocationOverride = true;
+      saveManualProviderLocation(lat, lng);
+      stopLocationUpdates();
+      await sendLocation(lat, lng);
+      updateProviderMarker(lat, lng);
+      if (map) {
+        map.setView([lat, lng], Math.max(map.getZoom(), 14), { animate: true });
+      }
+      setLocationMessage("A saját helyed be lett állítva és elmentve.");
+    },
+    (err) => {
+      setLocationMessage(`Nem sikerült lekérni a helyzetedet: ${err?.message || "ismeretlen hiba"}`);
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }
+  );
 });
 
 providerChatSend?.addEventListener("click", sendChatMessage);

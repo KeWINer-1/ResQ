@@ -12,6 +12,8 @@ const settingsPerKmFeeEl = document.getElementById("provider-per-km-fee");
 const settingsCapabilitiesEl = document.getElementById("provider-capabilities");
 const settingsSaveBtn = document.getElementById("provider-settings-save");
 const statusToast = document.getElementById("status-toast");
+const historySummaryEl = document.getElementById("provider-history-summary");
+const historyListEl = document.getElementById("provider-history-list");
 
 function showToast(message) {
   if (!statusToast) return;
@@ -26,6 +28,78 @@ function formatCurrency(value) {
   return `${Math.round(n).toLocaleString("hu-HU")} Ft`;
 }
 
+function formatEstimatedPrice(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "Nincs adat";
+  return `${Math.round(n).toLocaleString("hu-HU")} Ft`;
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("hu-HU", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function statusLabel(status) {
+  const value = String(status || "").toLowerCase();
+  if (value === "new") return "Új";
+  if (value === "accepted") return "Elfogadva";
+  if (value === "enroute") return "Úton";
+  if (value === "arrived") return "Megérkezett";
+  if (value === "completed") return "Kész";
+  if (value === "cancelled") return "Lemondva";
+  return status || "Ismeretlen";
+}
+
+function extractDestinationFromNotes(notes) {
+  const value = String(notes || "");
+  const marker = "__DESTINATION__:";
+  const idx = value.indexOf(marker);
+  if (idx < 0) return "";
+  return value.slice(idx + marker.length).split("\n")[0].trim();
+}
+
+function renderHistory(items) {
+  if (!historySummaryEl || !historyListEl) return;
+  const safeItems = Array.isArray(items) ? items : [];
+  historySummaryEl.textContent = `Összes fuvar: ${safeItems.length} db`;
+
+  if (!safeItems.length) {
+    historyListEl.innerHTML = '<p class="notice">Még nincs fuvar előzmény.</p>';
+    return;
+  }
+
+  historyListEl.innerHTML = safeItems
+    .map((item) => {
+      const fromAddress = item?.PickupAddress || "Nincs megadva indulási cím";
+      const toAddress = item?.DestinationAddress || extractDestinationFromNotes(item?.Notes);
+      const problem = item?.ProblemType || "Nincs megadva hiba";
+      const estimatedPrice = formatEstimatedPrice(item?.EstimatedPrice);
+      const created = formatDateTime(item?.CreatedAt);
+      const status = statusLabel(item?.JobStatus || item?.Status);
+      const statusKey = String(item?.JobStatus || item?.Status || "").toLowerCase();
+      return `
+        <article class="account-history-item">
+          <h3>#${item?.Id || "-"}</h3>
+          <span class="history-status-badge history-status-${statusKey}">${status}</span>
+          <p class="history-row"><strong>Dátum:</strong><span>${created}</span></p>
+          <p class="history-row"><strong>Indulás:</strong><span>${fromAddress}</span></p>
+          <p class="history-row"><strong>Cél:</strong><span>${toAddress || "Nincs megadva célcím"}</span></p>
+          <p class="history-row"><strong>Hiba:</strong><span>${problem}</span></p>
+          <p class="history-row"><strong>Becsült ár:</strong><span>${estimatedPrice}</span></p>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function renderRatings(items) {
   if (!ratingsListEl) return;
   if (!Array.isArray(items) || items.length === 0) {
@@ -37,15 +111,15 @@ function renderRatings(items) {
       const stars = Number(item.Stars || 0);
       const clipped = Math.max(0, Math.min(5, stars));
       const starsText = "★".repeat(clipped) + "☆".repeat(5 - clipped);
-      const comment = String(item.Comment || "").trim() || "Nincs szoveges velemeny.";
+      const comment = String(item.Comment || "").trim() || "Nincs szöveges vélemény.";
       const dateText = item.CreatedAt ? new Date(item.CreatedAt).toLocaleString("hu-HU") : "";
-      const user = item.UserEmail || "Felhasznalo";
+      const user = item.UserEmail || "Felhasználó";
       return `<article class="card rating-item">
         <div class="rating-item-top">
           <strong class="rating-stars">${starsText} <span class="rating-value">(${stars}/5)</span></strong>
           <span class="notice">${dateText}</span>
         </div>
-        <div class="notice">Ertekelte: ${user}</div>
+        <div class="notice">Értékelte: ${user}</div>
         <p class="rating-comment">${comment}</p>
       </article>`;
     })
@@ -53,10 +127,11 @@ function renderRatings(items) {
 }
 
 async function loadData() {
-  const [profile, stats, ratings] = await Promise.all([
+  const [profile, stats, ratings, historyRows] = await Promise.all([
     apiFetch("/api/providers/me"),
     apiFetch("/api/providers/me/stats"),
-    apiFetch("/api/providers/me/ratings")
+    apiFetch("/api/providers/me/ratings"),
+    apiFetch("/api/requests/provider")
   ]);
 
   if (settingsRadiusEl) settingsRadiusEl.value = String(profile.ServiceRadiusKm ?? "");
@@ -80,6 +155,7 @@ async function loadData() {
   if (tripCountEl) tripCountEl.textContent = String(Number(stats?.completedTrips || 0));
   if (totalEarningsEl) totalEarningsEl.textContent = formatCurrency(stats?.totalEarnings || 0);
   renderRatings(ratings?.items || []);
+  renderHistory(historyRows || []);
 }
 
 async function saveSettings() {
