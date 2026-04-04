@@ -1,8 +1,14 @@
 ﻿const statusEl = document.getElementById("provider-status");
 const locationMessageEl = document.getElementById("provider-location-message");
 const onlinePill = document.getElementById("online-pill");
+const onlinePillMobile = document.getElementById("online-pill-mobile");
 const toggleBtn = document.getElementById("toggle-online");
+const toggleBtnMobile = document.getElementById("toggle-online-mobile");
+const mobileStatusText = document.getElementById("provider-mobile-status");
 const providerUseCurrentLocationBtn = document.getElementById("provider-use-current-location");
+const providerManualAddressInput = document.getElementById("provider-manual-address");
+const providerManualAddressBtn = document.getElementById("provider-set-manual-address");
+const providerManualAddressHint = document.getElementById("provider-manual-address-hint");
 const providerLocationSelectedEl = document.getElementById("provider-location-selected");
 const providerChatHint = document.getElementById("provider-chat-hint");
 const providerChatBox = document.getElementById("provider-chat-box");
@@ -51,11 +57,20 @@ const providerOverlayArrived = document.getElementById("provider-overlay-arrived
 const providerOverlayCompleted = document.getElementById("provider-overlay-completed");
 const providerOverlayCancel = document.getElementById("provider-overlay-cancel");
 const providerOverlayChat = document.getElementById("provider-overlay-chat");
+const providerOverlayChatIcon = document.getElementById("provider-overlay-chat-icon");
+const providerChatDot = document.getElementById("provider-chat-dot");
 const providerOverlayClose = document.getElementById("provider-overlay-close");
 
 const mobileListToggle = document.getElementById("mobile-list-toggle");
 const mobileSheetGrip = document.getElementById("mobile-sheet-grip");
 const providerMobileBack = document.getElementById("provider-mobile-back");
+
+const providerChatModal = document.getElementById("provider-chat-modal");
+const providerChatModalList = document.getElementById("provider-chat-modal-list");
+const providerChatModalInput = document.getElementById("provider-chat-modal-input");
+const providerChatModalSend = document.getElementById("provider-chat-modal-send");
+const providerChatModalClose = document.getElementById("provider-chat-modal-close");
+const providerChatModalCancel = document.getElementById("provider-chat-modal-cancel");
 
 const currentRole = getUserRole();
 if (!currentRole) {
@@ -92,6 +107,11 @@ let userInteractedAt = 0;
 let lastAutoFitAt = 0;
 let lastAutoFitRequestId = null;
 let didInitialProviderCenter = false;
+let overlayDragStart = null;
+let overlayExpanded = false;
+let lastChatMessageId = null;
+let lastChatNotifiedId = null;
+let lastChatSeenId = null;
 const fallbackLocation = { lat: 47.4979, lng: 19.0402 };
 const manualProviderLocationStorageKey = "resq_manual_provider_location";
 const activeProviderRequestStorageKey = "resq_provider_active_request";
@@ -128,6 +148,11 @@ function notifyProvider(title, body) {
 function setLocationMessage(message) {
   if (!locationMessageEl) return;
   locationMessageEl.textContent = message || "";
+}
+
+function setManualAddressHint(message) {
+  if (!providerManualAddressHint) return;
+  providerManualAddressHint.textContent = message || "";
 }
 
 function formatDistance(distanceKm) {
@@ -191,6 +216,15 @@ function toNumber(value) {
   return Number.isFinite(num) ? num : null;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function shouldSendLocation(lat, lng) {
   const now = Date.now();
   if (!lastLocationCoords) return true;
@@ -205,6 +239,12 @@ function saveManualProviderLocation(lat, lng) {
       manualProviderLocationStorageKey,
       JSON.stringify({ lat, lng })
     );
+  } catch {}
+}
+
+function clearManualProviderLocation() {
+  try {
+    localStorage.removeItem(manualProviderLocationStorageKey);
   } catch {}
 }
 
@@ -435,6 +475,46 @@ function buildRequestAddress(req) {
   }
   return "";
 }
+
+function buildOverlayAddressHtml(req) {
+  const pickupLat = toNumber(req?.PickupLat ?? req?.pickupLat ?? null);
+  const pickupLng = toNumber(req?.PickupLng ?? req?.pickupLng ?? null);
+  const pickupAddress =
+    req?.PickupAddress ||
+    req?.pickupAddress ||
+    (Number.isFinite(pickupLat) && Number.isFinite(pickupLng)
+      ? `${pickupLat.toFixed(5)}, ${pickupLng.toFixed(5)}`
+      : null);
+  const destinationAddress = getDestinationAddress(req);
+
+  const lines = [];
+  if (pickupAddress) {
+    const safeValue = escapeHtml(pickupAddress);
+    const copyValue = encodeURIComponent(pickupAddress);
+    lines.push(
+      `<div class="address-line">
+        <span class="address-label">Felvétel</span>
+        <span class="address-value">${safeValue}</span>
+        <button class="address-copy" type="button" data-copy="${copyValue}" aria-label="Felvétel cím másolása">Másolás</button>
+      </div>`
+    );
+  }
+  if (destinationAddress) {
+    const safeValue = escapeHtml(destinationAddress);
+    const copyValue = encodeURIComponent(destinationAddress);
+    lines.push(
+      `<div class="address-line">
+        <span class="address-label">Cél</span>
+        <span class="address-value">${safeValue}</span>
+        <button class="address-copy" type="button" data-copy="${copyValue}" aria-label="Cél cím másolása">Másolás</button>
+      </div>`
+    );
+  }
+  if (lines.length === 0) {
+    return "<span class=\"address-empty\">Nincs cím megadva.</span>";
+  }
+  return lines.join("");
+}
 function setRequestUiDefaults() {
   if (providerRequestTitle) {
     providerRequestTitle.textContent = isOnline
@@ -456,7 +536,7 @@ function setRequestUiDefaults() {
   if (providerRequestProgress) providerRequestProgress.style.display = "none";
   if (providerRequestChatCta) providerRequestChatCta.style.display = "none";
   if (providerChatCard) providerChatCard.style.display = "none";
-  if (providerOverlay) providerOverlay.style.display = "none";
+  setProviderOverlayVisible(false);
 }
 
 async function reverseGeocode(lat, lng) {
@@ -476,17 +556,107 @@ async function reverseGeocode(lat, lng) {
   }
 }
 
-async function setManualLocationFields(lat, lng) {
-  const fallbackText = `Kijelölt pozíció: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+async function geocodeAddress(query) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(
+      query
+    )}&limit=1&addressdetails=1`;
+    const response = await fetch(url, {
+      headers: { "Accept-Language": "hu" }
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const result = Array.isArray(data) ? data[0] : null;
+    if (!result) return null;
+    const lat = Number(result.lat);
+    const lng = Number(result.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    const displayName = String(result.display_name || "").trim();
+    return { lat, lng, displayName: displayName || query };
+  } catch {
+    return null;
+  }
+}
+
+async function setLocationSelectedText(lat, lng, label = "Kijelölt hely", addressOverride = null) {
+  const fallbackText = `${label}: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   if (providerLocationSelectedEl) {
     providerLocationSelectedEl.textContent = fallbackText;
+  }
+  if (addressOverride) {
+    if (providerLocationSelectedEl) {
+      providerLocationSelectedEl.textContent = `${label}: ${addressOverride}`;
+    }
+    return;
   }
   const address = await reverseGeocode(lat, lng);
   if (providerLocationSelectedEl) {
     providerLocationSelectedEl.textContent = address
-      ? `Kijelölt hely: ${address}`
+      ? `${label}: ${address}`
       : fallbackText;
   }
+}
+
+async function applyManualLocation(lat, lng, addressLabel) {
+  manualLocationOverride = true;
+  saveManualProviderLocation(lat, lng);
+  stopLocationUpdates();
+  await setLocationSelectedText(lat, lng, "Kijelölt hely", addressLabel);
+  updateProviderMarker(lat, lng);
+  if (map) {
+    map.setView([lat, lng], Math.max(map.getZoom(), 14), { animate: true });
+  }
+  try {
+    await sendLocation(lat, lng);
+    lastLocationSentAt = Date.now();
+    lastLocationCoords = { lat, lng };
+    setLocationMessage("Kézi pozíció elmentve.");
+  } catch (err) {
+    setLocationMessage(err.message || "Nem sikerult elkuldeni a kezi poziciot.");
+  }
+}
+
+async function handleManualAddressSubmit() {
+  const rawAddress = providerManualAddressInput?.value?.trim() || "";
+  if (!rawAddress) {
+    setManualAddressHint("Adj meg egy címet a kereséshez.");
+    return;
+  }
+  setManualAddressHint("Cím keresése...");
+  const result = await geocodeAddress(rawAddress);
+  if (!result) {
+    setManualAddressHint("Nem találtunk címet. Add meg pontosabban.");
+    setLocationMessage("A cím nem található.");
+    return;
+  }
+  await applyManualLocation(result.lat, result.lng, result.displayName);
+  setManualAddressHint("Cím alapján mentett pozíció aktív.");
+}
+
+function setProviderOverlayVisible(visible) {
+  if (!providerOverlay) return;
+  document.body.classList.toggle("provider-request-open", visible);
+  if (visible) {
+    providerOverlay.style.display = "block";
+    setProviderOverlayExpanded(false);
+    requestAnimationFrame(() => {
+      providerOverlay.classList.add("is-visible");
+    });
+    return;
+  }
+  providerOverlay.classList.remove("is-visible");
+  const hideDelay = 320;
+  setTimeout(() => {
+    if (!providerOverlay.classList.contains("is-visible")) {
+      providerOverlay.style.display = "none";
+    }
+  }, hideDelay);
+}
+
+function setProviderOverlayExpanded(expanded) {
+  overlayExpanded = expanded;
+  if (!providerOverlay) return;
+  providerOverlay.classList.toggle("is-expanded", expanded);
 }
 
 function updateRequestUi(request) {
@@ -547,13 +717,13 @@ function updateRequestUi(request) {
     providerChatCard.style.display = "block";
   }
 
-  if (providerOverlay) {
-    providerOverlay.style.display = "block";
-  }
+  setProviderOverlayVisible(true);
   if (providerOverlayAvatar) providerOverlayAvatar.textContent = `#${request.Id}`;
   if (providerOverlayTitle) providerOverlayTitle.textContent = `Kérés #${request.Id}`;
   if (providerOverlaySub) providerOverlaySub.textContent = statusLabel;
-  if (providerOverlayAddress) providerOverlayAddress.textContent = buildRequestAddress(request) || "-";
+  if (providerOverlayAddress) {
+    providerOverlayAddress.innerHTML = buildOverlayAddressHtml(request);
+  }
 
   if (providerOverlayActions) {
     providerOverlayActions.style.display = isNew ? "flex" : "none";
@@ -565,7 +735,7 @@ function updateRequestUi(request) {
     providerOverlayProgress.style.display = "none";
   }
 
-  if (activeRequestId) {
+  if (activeRequestId && String(activeRequestId) !== String(activeChatRequestId || "")) {
     selectRequest(activeRequestId);
   }
 
@@ -578,15 +748,15 @@ function getMyUserId() {
   return data?.userId || null;
 }
 
-function renderChatMessages(messages) {
-  if (!providerChatBox) return;
+function renderChatMessages(messages, targetEl = providerChatBox) {
+  if (!targetEl) return;
   const myUserId = getMyUserId();
   if (!messages || messages.length === 0) {
-    providerChatBox.innerHTML = "<p class=\"notice\">Nincs üzenet.</p>";
+    targetEl.innerHTML = "<p class=\"notice\">Nincs üzenet.</p>";
     return;
   }
 
-  providerChatBox.innerHTML = messages
+  targetEl.innerHTML = messages
     .map((msg) => {
       const isMe = myUserId && msg.SenderUserId === myUserId;
       const roleClass = isMe ? "me" : "admin";
@@ -599,22 +769,60 @@ function renderChatMessages(messages) {
           })
         : "";
       return `<div class="chat-line ${roleClass}">
-        <div class="chat-meta">${sender}${time ? ` · ${time}` : ""}</div>
-        <div class="chat-bubble">${msg.Body}</div>
+        <div class="chat-meta">${escapeHtml(sender)}${time ? ` · ${escapeHtml(time)}` : ""}</div>
+        <div class="chat-bubble">${escapeHtml(msg.Body)}</div>
       </div>`;
     })
     .join("");
-  providerChatBox.scrollTop = providerChatBox.scrollHeight;
+  targetEl.scrollTop = targetEl.scrollHeight;
+}
+
+function setChatUnread(hasUnread) {
+  if (!providerChatDot) return;
+  providerChatDot.style.display = hasUnread ? "inline-flex" : "none";
 }
 
 async function loadChatMessages() {
   if (!activeChatRequestId) return;
   try {
     const data = await apiFetch(`/api/requests/${activeChatRequestId}/messages`);
-    renderChatMessages(data.messages || []);
+    const messages = data.messages || [];
+    renderChatMessages(messages, providerChatBox);
+    renderChatMessages(messages, providerChatModalList);
+    const lastMessage = messages[messages.length - 1];
+    const messageKey = lastMessage?.Id || lastMessage?.CreatedAt || null;
+    if (messageKey) {
+      lastChatMessageId = messageKey;
+      const myUserId = getMyUserId();
+      const isFromMe = myUserId && lastMessage.SenderUserId === myUserId;
+      const isModalOpen = providerChatModal?.style.display === "flex";
+      if (!isFromMe) {
+        if (lastChatSeenId !== messageKey) {
+          setChatUnread(true);
+        }
+        if (!isModalOpen && lastChatNotifiedId !== messageKey) {
+          lastChatNotifiedId = messageKey;
+          const sender =
+            lastMessage.SenderProviderName ||
+            lastMessage.SenderEmail ||
+            lastMessage.SenderRole ||
+            "Felhasználó";
+          showToast(`Új üzenet: ${sender}`);
+          notifyProvider("Új üzenet érkezett", sender);
+        }
+      } else if (isModalOpen) {
+        lastChatSeenId = messageKey;
+        setChatUnread(false);
+      }
+    } else {
+      setChatUnread(false);
+    }
   } catch (err) {
     if (providerChatBox) {
       providerChatBox.innerHTML = `<p class="notice">${err.message}</p>`;
+    }
+    if (providerChatModalList) {
+      providerChatModalList.innerHTML = `<p class="notice">${err.message}</p>`;
     }
   }
 }
@@ -633,7 +841,14 @@ function stopChatPolling() {
 }
 
 function selectRequest(requestId) {
+  if (String(activeChatRequestId || "") === String(requestId || "")) {
+    return;
+  }
   activeChatRequestId = requestId;
+  lastChatMessageId = null;
+  lastChatNotifiedId = null;
+  lastChatSeenId = null;
+  setChatUnread(false);
   const request = requestCache.get(String(requestId));
   if (providerChatHint) {
     const statusText = request?.JobStatus || request?.Status || "";
@@ -662,6 +877,21 @@ async function sendChatMessage() {
     setLocationMessage(err.message || "Nem sikerult elkuldeni az uzenetet.");
   }
 }
+
+async function sendChatMessageBody(body) {
+  const message = String(body || "").trim();
+  if (!message || !activeChatRequestId) return;
+  try {
+    await apiFetch(`/api/requests/${activeChatRequestId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: message })
+    });
+    await loadChatMessages();
+  } catch (err) {
+    setLocationMessage(err.message || "Nem sikerult elkuldeni az uzenetet.");
+  }
+}
 async function sendLocation(lat, lng) {
   await apiFetch("/api/providers/me/location", {
     method: "PATCH",
@@ -679,7 +909,7 @@ async function loadProfile() {
     const savedManualLocation = loadManualProviderLocation();
     if (savedManualLocation) {
       manualLocationOverride = true;
-      setManualLocationFields(savedManualLocation.lat, savedManualLocation.lng);
+      setLocationSelectedText(savedManualLocation.lat, savedManualLocation.lng, "Kijelölt hely");
       updateProviderMarker(savedManualLocation.lat, savedManualLocation.lng);
       setLocationMessage("Kezileg mentett pozicio aktiv.");
       stopLocationUpdates();
@@ -709,8 +939,16 @@ function updateStatus() {
     onlinePill.classList.toggle("is-online", isOnline);
     onlinePill.classList.toggle("is-offline", !isOnline);
   }
+  if (onlinePillMobile) {
+    onlinePillMobile.textContent = isOnline ? "Online" : "Offline";
+    onlinePillMobile.classList.toggle("is-online", isOnline);
+    onlinePillMobile.classList.toggle("is-offline", !isOnline);
+  }
   if (statusEl) {
     statusEl.textContent = isOnline ? "Elérhető vagy." : "Offline módban vagy.";
+  }
+  if (mobileStatusText) {
+    mobileStatusText.textContent = isOnline ? "Elérhető vagy." : "Offline mód";
   }
   if (!activeRequest) {
     setRequestUiDefaults();
@@ -1053,6 +1291,28 @@ function focusChat() {
   }
 }
 
+function setChatModalOpen(open) {
+  if (!providerChatModal) return;
+  providerChatModal.style.display = open ? "flex" : "none";
+  if (open) {
+    providerChatModalInput?.focus();
+    if (lastChatMessageId) {
+      lastChatSeenId = lastChatMessageId;
+      setChatUnread(false);
+    }
+  }
+}
+
+async function handleChatModalSend() {
+  const body = providerChatModalInput?.value?.trim();
+  if (!body) return;
+  await sendChatMessageBody(body);
+  if (providerChatModalInput) {
+    providerChatModalInput.value = "";
+  }
+  setChatModalOpen(false);
+}
+
 providerRequestAccept?.addEventListener("click", () => updateRequestStatus("accepted"));
 providerRequestReject?.addEventListener("click", () => updateRequestStatus("cancelled"));
 providerRequestEnroute?.addEventListener("click", () => updateRequestStatus("enroute"));
@@ -1068,8 +1328,79 @@ providerOverlayArrived?.addEventListener("click", () => updateRequestStatus("arr
 providerOverlayCompleted?.addEventListener("click", () => updateRequestStatus("completed"));
 providerOverlayCancel?.addEventListener("click", () => updateRequestStatus("cancelled"));
 providerOverlayChat?.addEventListener("click", focusChat);
+providerOverlayChatIcon?.addEventListener("click", () => {
+  if (!activeRequestId) return;
+  selectRequest(activeRequestId);
+  setChatModalOpen(true);
+});
 providerOverlayClose?.addEventListener("click", () => {
-  if (providerOverlay) providerOverlay.style.display = "none";
+  setProviderOverlayVisible(false);
+});
+
+providerOverlay?.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  if (target.closest(".overlay-grip")) {
+    setProviderOverlayExpanded(!overlayExpanded);
+  }
+});
+
+providerOverlay?.addEventListener("touchstart", (event) => {
+  const touch = event.touches[0];
+  if (!touch || !providerOverlay) return;
+  const rect = providerOverlay.getBoundingClientRect();
+  if (touch.clientY - rect.top > 60) return;
+  overlayDragStart = touch.clientY;
+});
+
+providerOverlay?.addEventListener("touchend", (event) => {
+  if (overlayDragStart == null) return;
+  const endY = event.changedTouches[0]?.clientY ?? overlayDragStart;
+  const delta = endY - overlayDragStart;
+  if (delta < -40) {
+    setProviderOverlayExpanded(true);
+  } else if (delta > 40) {
+    setProviderOverlayExpanded(false);
+  }
+  overlayDragStart = null;
+});
+
+providerOverlay?.addEventListener("click", async (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  const copyBtn = target.closest(".address-copy");
+  if (!copyBtn) return;
+  const rawValue = copyBtn.getAttribute("data-copy") || "";
+  const value = decodeURIComponent(rawValue);
+  try {
+    await navigator.clipboard.writeText(value);
+    showToast("Cím másolva.");
+  } catch {
+    const temp = document.createElement("textarea");
+    temp.value = value;
+    temp.style.position = "fixed";
+    temp.style.opacity = "0";
+    document.body.appendChild(temp);
+    temp.focus();
+    temp.select();
+    try {
+      document.execCommand("copy");
+      showToast("Cím másolva.");
+    } catch {
+      showToast("Nem sikerült másolni.");
+    }
+    document.body.removeChild(temp);
+  }
+});
+
+providerChatModalClose?.addEventListener("click", () => setChatModalOpen(false));
+providerChatModalCancel?.addEventListener("click", () => setChatModalOpen(false));
+providerChatModalSend?.addEventListener("click", handleChatModalSend);
+providerChatModalInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    handleChatModalSend();
+  }
 });
 
 mobileListToggle?.addEventListener("click", () => {
@@ -1103,6 +1434,7 @@ providerMobileBack?.addEventListener("click", () => {
 providerMapCenterBtn?.addEventListener("click", centerMapToProvider);
 
 toggleBtn?.addEventListener("click", toggleOnline);
+toggleBtnMobile?.addEventListener("click", toggleOnline);
 
 if (!getToken()) {
   if (statusEl) statusEl.textContent = "Belepes szukseges.";
@@ -1121,22 +1453,35 @@ providerUseCurrentLocationBtn?.addEventListener("click", () => {
     async (pos) => {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      await setManualLocationFields(lat, lng);
-      manualLocationOverride = true;
-      saveManualProviderLocation(lat, lng);
+      manualLocationOverride = false;
+      clearManualProviderLocation();
       stopLocationUpdates();
+      await setLocationSelectedText(lat, lng, "GPS hely");
       await sendLocation(lat, lng);
       updateProviderMarker(lat, lng);
       if (map) {
         map.setView([lat, lng], Math.max(map.getZoom(), 14), { animate: true });
       }
-      setLocationMessage("A saját helyed be lett állítva és elmentve.");
+      if (isOnline) {
+        startLocationUpdates();
+        setLocationMessage("GPS követés aktív.");
+      } else {
+        setLocationMessage("GPS hely frissítve. Online módban automatikusan frissül.");
+      }
     },
     (err) => {
       setLocationMessage(`Nem sikerült lekérni a helyzetedet: ${err?.message || "ismeretlen hiba"}`);
     },
     { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }
   );
+});
+
+providerManualAddressBtn?.addEventListener("click", handleManualAddressSubmit);
+providerManualAddressInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    handleManualAddressSubmit();
+  }
 });
 
 providerChatSend?.addEventListener("click", sendChatMessage);

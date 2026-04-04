@@ -104,6 +104,19 @@
           <div class="cta-row" style="margin-top: 10px;">
             <button class="btn secondary" id="provider-use-current-location" type="button">Saját hely használata</button>
           </div>
+          <label for="provider-manual-address">Cím megadása</label>
+          <input
+            id="provider-manual-address"
+            type="text"
+            placeholder="Pl. Budapest, Andrássy út 1."
+            autocomplete="street-address"
+          />
+          <div class="cta-row" style="margin-top: 10px;">
+            <button class="btn secondary" id="provider-set-manual-address" type="button">Cím beállítása</button>
+          </div>
+          <p class="notice" id="provider-manual-address-hint">
+            A GPS követéshez kattints a "Saját hely használata" gombra.
+          </p>
           <p class="notice" id="provider-location-selected">Még nincs kijelölt pozíció.</p>
         </div>
 
@@ -124,13 +137,26 @@
         </button>
         <button class="btn secondary mobile-toggle" id="mobile-list-toggle" type="button">Vezérlők</button>
         <div class="map-overlay" id="provider-request-overlay" style="display: none;">
+          <div class="overlay-grip" aria-hidden="true"></div>
           <div class="panel-header">
             <div class="panel-avatar" id="provider-overlay-avatar">KR</div>
             <div class="panel-title-wrap">
               <div class="panel-title" id="provider-overlay-title">Kérés</div>
               <div class="panel-sub" id="provider-overlay-sub">Várakozás</div>
             </div>
-            <button class="panel-close" id="provider-overlay-close" type="button">&times;</button>
+            <div class="panel-header-actions">
+              <button
+                class="panel-chat-icon"
+                id="provider-overlay-chat-icon"
+                type="button"
+                aria-label="Üzenet küldése"
+                title="Üzenet"
+              >
+                💬
+                <span class="chat-dot" id="provider-chat-dot" aria-hidden="true"></span>
+              </button>
+              <button class="panel-close" id="provider-overlay-close" type="button">&times;</button>
+            </div>
           </div>
           <div class="panel-row">
             <span class="panel-label">Távolság</span>
@@ -144,23 +170,46 @@
             <span class="panel-label">Becsült díj</span>
             <span class="panel-value price" id="provider-overlay-price">-</span>
           </div>
-          <div class="panel-row">
-            <span class="panel-label">Cím</span>
-            <span class="panel-value" id="provider-overlay-address">-</span>
-          </div>
+          <details class="panel-details" id="provider-overlay-address-details">
+            <summary class="panel-details-summary">
+              <span>Cím</span>
+              <span class="panel-details-icon">▾</span>
+            </summary>
+            <div class="panel-address" id="provider-overlay-address">-</div>
+          </details>
           <div class="cta-row panel-actions" id="provider-overlay-actions" style="margin-top: 12px;">
             <button class="btn" id="provider-overlay-accept" type="button">Elfogadom</button>
-            <button class="btn secondary" id="provider-overlay-reject" type="button">Elutasítás</button>
+            <button class="btn secondary danger-outline" id="provider-overlay-reject" type="button">Elutasítás</button>
           </div>
           <div class="cta-row panel-actions" id="provider-overlay-progress" style="margin-top: 12px; display: none;">
-            <button class="btn secondary" id="provider-overlay-enroute" type="button">Úton</button>
-            <button class="btn secondary" id="provider-overlay-arrived" type="button">Megérkeztem</button>
+            <div class="panel-progress-row">
+              <button class="btn secondary pill" id="provider-overlay-enroute" type="button">Úton</button>
+              <button class="btn secondary pill" id="provider-overlay-arrived" type="button">Megérkeztem</button>
+            </div>
             <button class="btn" id="provider-overlay-completed" type="button">Kész</button>
-            <button class="btn secondary" id="provider-overlay-cancel" type="button">Lemond</button>
-            <button class="btn secondary" id="provider-overlay-chat" type="button">Üzenet</button>
+            <button class="btn danger" id="provider-overlay-cancel" type="button">Lemond</button>
           </div>
         </div>
         <div id="status-toast" class="toast"></div>
+        <div class="mobile-online-bar" id="provider-mobile-bar">
+          <span class="status-pill" id="online-pill-mobile">Offline</span>
+          <span class="mobile-online-text" id="provider-mobile-status">Offline mód</span>
+          <button class="btn" id="toggle-online-mobile" type="button">Online/Offline</button>
+        </div>
+        <div class="modal-backdrop" id="provider-chat-modal" style="display: none;">
+          <div class="modal-card">
+            <div class="modal-title-row">
+              <div class="modal-title">Üzenet küldése</div>
+              <button class="modal-close" id="provider-chat-modal-close" type="button">&times;</button>
+            </div>
+            <div class="chat-box modal-chat-box" id="provider-chat-modal-list"></div>
+            <textarea id="provider-chat-modal-input" rows="2" placeholder="Írj üzenetet..."></textarea>
+            <div class="cta-row">
+              <button class="btn secondary" id="provider-chat-modal-cancel" type="button">Mégse</button>
+              <button class="btn" id="provider-chat-modal-send" type="button">Küld</button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
