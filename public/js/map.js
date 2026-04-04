@@ -71,10 +71,10 @@ let mapCenterBtn = document.getElementById("map-center-btn");
 
 const currentRole = getUserRole();
 if (currentRole === "Provider") {
-  window.location.href = "/provider.html";
+  window.location.href = "/provider";
 }
 if (currentRole === "Admin") {
-  window.location.href = "/admin.html";
+  window.location.href = "/admin";
 }
 
 let map;
@@ -1136,7 +1136,7 @@ function hardResetToInitial() {
     localStorage.removeItem("resq_profile");
     localStorage.removeItem("resq_profile_ts");
   } catch {}
-  window.location.replace("/map.html");
+  window.location.replace("/map");
 }
 
 function resetToInitialFlow() {

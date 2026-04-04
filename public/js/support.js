@@ -1,4 +1,4 @@
-const messageEl = document.getElementById("support-message");
+﻿const messageEl = document.getElementById("support-message");
 const chatEl = document.getElementById("support-chat");
 const messagesEl = document.getElementById("support-messages");
 const inputEl = document.getElementById("support-input");

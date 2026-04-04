@@ -17,6 +17,79 @@ function sanitizeBody(body) {
   return value.length > 2000 ? value.slice(0, 2000) : value;
 }
 
+router.get("/admin/all", authRequired, requireRole("Admin"), async (_req, res) => {
+  try {
+    const pool = await getPool();
+    const result = await pool.request().query(
+      "SELECT TOP 300 r.Id, r.UserId, r.SelectedProviderId, r.PickupAddress, r.DestinationAddress, r.Status, r.CreatedAt, r.UpdatedAt, u.Email AS UserEmail, p.Name AS ProviderName, p.Phone AS ProviderPhone, j.Status AS JobStatus FROM ServiceRequests r JOIN Users u ON u.Id = r.UserId LEFT JOIN Providers p ON p.Id = r.SelectedProviderId LEFT JOIN Jobs j ON j.RequestId = r.Id AND j.ProviderId = r.SelectedProviderId ORDER BY r.UpdatedAt DESC, r.Id DESC"
+    );
+    return res.json(result.recordset);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/admin/active", authRequired, requireRole("Admin"), async (_req, res) => {
+  try {
+    const pool = await getPool();
+    const result = await pool.request().query(
+      "SELECT TOP 300 r.Id, r.UserId, r.SelectedProviderId, r.PickupAddress, r.DestinationAddress, r.Status, r.CreatedAt, r.UpdatedAt, u.Email AS UserEmail, p.Name AS ProviderName, p.Phone AS ProviderPhone, j.Status AS JobStatus FROM ServiceRequests r JOIN Users u ON u.Id = r.UserId LEFT JOIN Providers p ON p.Id = r.SelectedProviderId LEFT JOIN Jobs j ON j.RequestId = r.Id AND j.ProviderId = r.SelectedProviderId WHERE r.Status IN ('new', 'accepted') OR j.Status IN ('accepted', 'enroute', 'arrived') ORDER BY r.UpdatedAt DESC, r.Id DESC"
+    );
+    return res.json(result.recordset);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/admin/history", authRequired, requireRole("Admin"), async (req, res) => {
+  const dateExactRaw = String(req.query.dateExact || "").trim();
+  const rangeDaysRaw = String(req.query.rangeDays || "").trim();
+  const dateFromRaw = String(req.query.dateFrom || "").trim();
+  const dateToRaw = String(req.query.dateTo || "").trim();
+  const providerRaw = String(req.query.provider || "").trim();
+  const userRaw = String(req.query.user || "").trim();
+  const isDateExactValid = /^\d{4}-\d{2}-\d{2}$/.test(dateExactRaw);
+  const isDateFromValid = /^\d{4}-\d{2}-\d{2}$/.test(dateFromRaw);
+  const isDateToValid = /^\d{4}-\d{2}-\d{2}$/.test(dateToRaw);
+  const rangeDays =
+    rangeDaysRaw === "7" || rangeDaysRaw === "30" ? Number.parseInt(rangeDaysRaw, 10) : null;
+
+  let dateFrom = null;
+  let dateTo = null;
+
+  if (isDateExactValid) {
+    dateFrom = new Date(`${dateExactRaw}T00:00:00.000Z`);
+    dateTo = new Date(`${dateExactRaw}T23:59:59.999Z`);
+  } else if (rangeDays) {
+    const now = new Date();
+    dateTo = new Date(now);
+    dateFrom = new Date(now);
+    dateFrom.setUTCDate(dateFrom.getUTCDate() - rangeDays);
+  } else {
+    dateFrom = isDateFromValid ? new Date(`${dateFromRaw}T00:00:00.000Z`) : null;
+    dateTo = isDateToValid ? new Date(`${dateToRaw}T23:59:59.999Z`) : null;
+  }
+
+  const providerLike = providerRaw ? `%${providerRaw}%` : null;
+  const userLike = userRaw ? `%${userRaw}%` : null;
+
+  try {
+    const pool = await getPool();
+    const request = pool.request();
+    request.input("dateFrom", sql.DateTime2, dateFrom);
+    request.input("dateTo", sql.DateTime2, dateTo);
+    request.input("providerLike", sql.VarChar, providerLike);
+    request.input("userLike", sql.VarChar, userLike);
+
+    const result = await request.query(
+      "SELECT TOP 1000 r.Id, r.UserId, r.SelectedProviderId, r.PickupAddress, r.DestinationAddress, r.Status, r.CreatedAt, r.UpdatedAt, u.Email AS UserEmail, u.Name AS UserName, p.Name AS ProviderName, p.Phone AS ProviderPhone, j.Status AS JobStatus FROM ServiceRequests r JOIN Users u ON u.Id = r.UserId LEFT JOIN Providers p ON p.Id = r.SelectedProviderId LEFT JOIN Jobs j ON j.RequestId = r.Id AND j.ProviderId = r.SelectedProviderId WHERE (@dateFrom IS NULL OR r.CreatedAt >= @dateFrom) AND (@dateTo IS NULL OR r.CreatedAt <= @dateTo) AND (@providerLike IS NULL OR p.Name LIKE @providerLike OR p.Phone LIKE @providerLike) AND (@userLike IS NULL OR u.Email LIKE @userLike OR u.Name LIKE @userLike) ORDER BY r.CreatedAt DESC, r.Id DESC"
+    );
+    return res.json(result.recordset);
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.post("/", authRequired, requireRole("User"), async (req, res) => {
   const {
     pickupLat,
@@ -131,8 +204,9 @@ router.get("/:id(\\d+)", authRequired, async (req, res) => {
     const isUserOwner = req.user?.role === "User" && req.user?.userId === row.UserId;
     const isSelectedProvider =
       req.user?.role === "Provider" && req.user?.providerId === row.SelectedProviderId;
+    const isAdmin = req.user?.role === "Admin";
 
-    if (!isUserOwner && !isSelectedProvider) {
+    if (!isUserOwner && !isSelectedProvider && !isAdmin) {
       return res.status(403).json({ error: "Forbidden" });
     }
 
@@ -361,6 +435,57 @@ router.patch("/:id(\\d+)/cancel", authRequired, requireRole("User"), async (req,
   }
 });
 
+router.patch("/:id(\\d+)/admin-cancel", authRequired, requireRole("Admin"), async (req, res) => {
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: "Invalid request id" });
+  }
+
+  try {
+    const pool = await getPool();
+    const requestResult = await pool
+      .request()
+      .input("id", sql.Int, id)
+      .query("SELECT TOP 1 Id, Status, SelectedProviderId FROM ServiceRequests WHERE Id = @id");
+
+    if (requestResult.recordset.length === 0) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+
+    const row = requestResult.recordset[0];
+    if (row.Status === "completed" || row.Status === "cancelled") {
+      return res.json({ ok: true });
+    }
+
+    await pool
+      .request()
+      .input("requestId", sql.Int, id)
+      .query(
+        "UPDATE ServiceRequests SET Status = 'cancelled', UpdatedAt = GETUTCDATE() WHERE Id = @requestId"
+      );
+
+    await pool
+      .request()
+      .input("requestId", sql.Int, id)
+      .query(
+        "UPDATE Jobs SET Status = 'cancelled', UpdatedAt = GETUTCDATE() WHERE RequestId = @requestId AND Status IN ('accepted', 'enroute', 'arrived')"
+      );
+
+    if (row.SelectedProviderId) {
+      await pool
+        .request()
+        .input("providerId", sql.Int, row.SelectedProviderId)
+        .query(
+          "UPDATE Providers SET IsOnline = 1, LastSeenAt = GETUTCDATE() WHERE Id = @providerId"
+        );
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.get("/:id(\\d+)/messages", authRequired, async (req, res) => {
   const id = Number.parseInt(req.params.id, 10);
   if (!Number.isInteger(id)) {
@@ -384,8 +509,9 @@ router.get("/:id(\\d+)/messages", authRequired, async (req, res) => {
     const isUserOwner = req.user?.role === "User" && req.user?.userId === row.UserId;
     const isSelectedProvider =
       req.user?.role === "Provider" && req.user?.providerId === row.SelectedProviderId;
+    const isAdmin = req.user?.role === "Admin";
 
-    if (!isUserOwner && !isSelectedProvider) {
+    if (!isUserOwner && !isSelectedProvider && !isAdmin) {
       return res.status(403).json({ error: "Forbidden" });
     }
 
@@ -430,8 +556,9 @@ router.post("/:id(\\d+)/messages", authRequired, async (req, res) => {
     const isUserOwner = req.user?.role === "User" && req.user?.userId === row.UserId;
     const isSelectedProvider =
       req.user?.role === "Provider" && req.user?.providerId === row.SelectedProviderId;
+    const isAdmin = req.user?.role === "Admin";
 
-    if (!isUserOwner && !isSelectedProvider) {
+    if (!isUserOwner && !isSelectedProvider && !isAdmin) {
       return res.status(403).json({ error: "Forbidden" });
     }
 

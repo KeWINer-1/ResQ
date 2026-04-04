@@ -547,6 +547,23 @@ textarea {
   color: #8c8c8c;
 }
 
+.app-theme input[type="date"],
+.map-page input[type="date"] {
+  position: relative;
+  min-height: 42px;
+  padding-right: 42px;
+  color-scheme: dark;
+}
+
+.app-theme input[type="date"]::-webkit-calendar-picker-indicator,
+.map-page input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 10px;
+  cursor: pointer;
+  opacity: 0.95;
+  filter: invert(78%) sepia(90%) saturate(1893%) hue-rotate(346deg) brightness(100%) contrast(102%);
+}
+
 .split {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -2153,6 +2170,114 @@ textarea {
   color: #d7d7d7;
 }
 
+.admin-page .admin-main-layout {
+  grid-template-columns: minmax(260px, 360px) 1fr;
+}
+
+.admin-page .admin-main-layout.chat-collapsed {
+  max-height: 400px;
+}
+
+.admin-page .admin-main-layout.chat-collapsed {
+  grid-template-columns: minmax(320px, 560px);
+  justify-content: center;
+  
+}
+
+.admin-page .admin-chat-card {
+  padding: 16px;
+}
+
+.admin-page .admin-chat-input-row {
+  grid-template-columns: 1fr auto;
+  margin-top: 12px;
+}
+
+.admin-page .admin-section-head-two {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.admin-page .admin-section-head-three {
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+}
+
+.admin-page .admin-history-filters {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.admin-page .admin-history-filters > label {
+  min-width: 0;
+}
+
+.admin-page .admin-history-filters input,
+.admin-page .admin-history-filters select {
+  width: 100%;
+}
+
+.admin-page .admin-history-toolbar {
+  grid-template-columns: auto 1fr;
+  align-items: end;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.admin-page .admin-history-toolbar .notice {
+  margin: 0;
+}
+
+.admin-page .admin-history-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  justify-content: center;
+}
+
+.admin-page .page-btn {
+  min-width: 40px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 138, 31, 0.35);
+  background: #0f1218;
+  color: #dce5f7;
+  cursor: pointer;
+}
+
+.admin-page .page-btn.is-active {
+  background: #ff8a1f;
+  color: #111;
+  border-color: #ff8a1f;
+  font-weight: 700;
+}
+
+.admin-page .page-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-page .admin-detail-row {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.admin-page .admin-detail-label,
+.admin-page .admin-detail-label-inline {
+  color: #8fb4ff;
+  font-weight: 700;
+}
+
+.admin-page .admin-detail-value {
+  color: #e5eaf3;
+  overflow-wrap: anywhere;
+}
+
 .automento-page .automento-section {
   width: min(1100px, 92vw);
   margin: 0 auto;
@@ -2219,6 +2344,53 @@ textarea {
   margin-top: 14px;
 }
 
+@media (max-width: 900px) {
+  .admin-page .admin-main-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .admin-page .admin-main-layout.chat-collapsed {
+    grid-template-columns: minmax(320px, 720px);
+    justify-content: center;
+  }
+
+  .admin-page .sidebar {
+    width: 100%;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+    max-height: none;
+  }
+
+  .admin-page .section > .card {
+    width: 100%;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .admin-page #admin-conversations {
+    max-height: 42vh;
+    overflow-y: auto;
+  }
+
+  .admin-page .admin-section-head-two,
+  .admin-page .admin-section-head-three {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .admin-page .admin-history-filters {
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+  }
+
+  .admin-page .admin-history-toolbar {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+}
+
 @media (max-width: 760px) {
   .site-footer-inner {
     grid-template-columns: 1fr;
@@ -2263,5 +2435,41 @@ textarea {
   .automento-page .metric-value,
   .automento-page .metric:first-child .metric-value {
     font-size: 1.9rem;
+  }
+
+  .admin-page .section {
+    padding: 18px 4vw;
+  }
+
+  .admin-page .admin-chat-input-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .admin-page .admin-chat-input-row .btn,
+  .admin-page .admin-section-head-two .btn,
+  .admin-page .admin-section-head-three .btn {
+    width: 100%;
+  }
+
+  .admin-page .admin-history-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-page .admin-detail-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .admin-page .conversation-filters {
+    gap: 6px;
+  }
+
+  .admin-page .filter-chip {
+    padding: 8px 12px;
+  }
+
+  .admin-page .chat-box {
+    max-height: 40vh;
   }
 }

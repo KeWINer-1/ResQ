@@ -59,10 +59,10 @@ const providerMobileBack = document.getElementById("provider-mobile-back");
 
 const currentRole = getUserRole();
 if (!currentRole) {
-  window.location.href = "/auth.html";
+  window.location.href = "/auth";
 }
 if (currentRole && currentRole !== "Provider") {
-  window.location.href = currentRole === "Admin" ? "/admin.html" : "/map.html";
+  window.location.href = currentRole === "Admin" ? "/admin" : "/map";
 }
 
 let isOnline = false;
