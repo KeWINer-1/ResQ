@@ -69,9 +69,9 @@ function getUserRole() {
 }
 
 function getHomePathForRole(role) {
-  if (role === "Admin") return "/admin.html";
-  if (role === "Provider") return "/provider.html";
-  return "/map.html";
+  if (role === "Admin") return "/admin";
+  if (role === "Provider") return "/provider";
+  return "/map";
 }
 
 async function apiFetch(path, options = {}) {
@@ -90,8 +90,8 @@ async function apiFetch(path, options = {}) {
     const data = await response.json().catch(() => ({ error: "Request failed" }));
     if (response.status === 401) {
       clearToken();
-      if (!window.location.pathname.endsWith("/auth.html")) {
-        window.location.href = "/auth.html";
+      if (!window.location.pathname.endsWith("/auth")) {
+        window.location.href = "/auth";
       }
     }
     const err = new Error(data.error || "Request failed");
@@ -145,27 +145,24 @@ function navKeyForLink(link) {
   if (link.hasAttribute("data-support-link")) return "support";
 
   const href = String(link.getAttribute("href") || "").toLowerCase();
-  if (href.endsWith("/map.html") || href === "map.html" || href.endsWith("/map")) {
+  if (href.endsWith("/map") || href === "map.html") {
     return "map";
   }
   if (
-    href.endsWith("/rolunk.html") ||
-    href === "rolunk.html" ||
     href.endsWith("/rolunk") ||
+    href === "rolunk.html" ||
     href.endsWith("/about")
   ) {
     return "about";
   }
-  if (href.endsWith("/admin.html") || href === "admin.html" || href.endsWith("/admin")) {
+  if (href.endsWith("/admin") || href === "admin.html") {
     return "admin";
   }
   if (
-    href.endsWith("/provider.html") ||
-    href === "provider.html" ||
     href.endsWith("/provider") ||
-    href.endsWith("/automento.html") ||
-    href === "automento.html" ||
-    href.endsWith("/automento")
+    href === "provider.html" ||
+    href.endsWith("/automento") ||
+    href === "automento.html"
   ) {
     return "provider";
   }
@@ -176,11 +173,10 @@ function isHomeOrMapLink(link) {
   const href = String(link?.getAttribute("href") || "").toLowerCase();
   return (
     href === "index.html" ||
-    href.endsWith("/index.html") ||
+    href.endsWith("/") ||
     href === "/" ||
-    href.endsWith("/map.html") ||
-    href === "map.html" ||
-    href.endsWith("/map")
+    href.endsWith("/map") ||
+    href === "map.html"
   );
 }
 
@@ -209,7 +205,7 @@ function updateRoleNav(role) {
   navLinks.forEach((link) => {
     if (!isHomeOrMapLink(link)) return;
     link.textContent = "Térkép";
-    link.setAttribute("href", role === "Provider" ? "/provider.html" : "/map.html");
+    link.setAttribute("href", role === "Provider" ? "/provider" : "/map");
   });
 
   if (role === "User") {
@@ -221,7 +217,7 @@ function updateRoleNav(role) {
     });
     supportLinks.forEach((link) => {
       link.textContent = "Ügyfélszolgálat";
-      link.setAttribute("href", "/support.html");
+      link.setAttribute("href", "/support");
     });
     applyFixedNavOrder("User");
     return;
@@ -233,12 +229,12 @@ function updateRoleNav(role) {
       const isAuth = link.hasAttribute("data-auth-link");
       const isAdminSupport =
         link.hasAttribute("data-support-link") ||
-        href.endsWith("/admin.html") ||
+        href.endsWith("/admin") ||
         href === "admin.html" ||
         href.endsWith("/admin");
       if (isAdminSupport) {
         link.textContent = "Segítségkérések";
-        link.setAttribute("href", "/admin.html");
+        link.setAttribute("href", "/admin");
       }
       link.style.display = isAuth || isAdminSupport ? "" : "none";
     });
@@ -250,11 +246,11 @@ function updateRoleNav(role) {
     navLinks.forEach((link) => {
       if (isHomeOrMapLink(link) || navKeyForLink(link) === "map") {
         link.textContent = "Térkép";
-        link.setAttribute("href", "/provider.html");
+        link.setAttribute("href", "/provider");
       }
     });
     providerLinks.forEach((link) => {
-      link.setAttribute("href", "/automento.html");
+      link.setAttribute("href", "/automento");
       link.textContent = "Autómentő mód";
     });
   }
@@ -267,7 +263,7 @@ function updateRoleNav(role) {
   });
   supportLinks.forEach((link) => {
     link.textContent = "Ügyfélszolgálat";
-    link.setAttribute("href", "/support.html");
+    link.setAttribute("href", "/support");
   });
   applyFixedNavOrder(role === "Provider" ? "Provider" : "Guest");
 }
@@ -351,13 +347,13 @@ function ensureAboutBeforeAccount() {
 function ensureBrandGoesHome() {
   const brandLinks = document.querySelectorAll("a.brand");
   brandLinks.forEach((link) => {
-    link.setAttribute("href", "/index.html");
+    link.setAttribute("href", "/");
   });
 }
 
 function logout() {
   clearToken();
-  window.location.href = "/auth.html";
+  window.location.href = "/auth";
 }
 
 async function updateAuthLinks() {
@@ -369,7 +365,7 @@ async function updateAuthLinks() {
   if (!token) {
     authLinks.forEach((link) => {
       link.textContent = "Belépés";
-      link.setAttribute("href", "/auth.html");
+      link.setAttribute("href", "/auth");
     });
     updateRoleNav(null);
     return;
@@ -378,7 +374,7 @@ async function updateAuthLinks() {
   try {
     const profile = await getMyProfile();
     const name = getDisplayName(profile);
-    const target = "/account.html";
+    const target = "/account";
 
     authLinks.forEach((link) => {
       link.textContent = name;
@@ -391,7 +387,7 @@ async function updateAuthLinks() {
       clearToken();
       authLinks.forEach((link) => {
         link.textContent = "Belépés";
-        link.setAttribute("href", "/auth.html");
+        link.setAttribute("href", "/auth");
       });
       updateRoleNav(null);
       return;
@@ -401,7 +397,7 @@ async function updateAuthLinks() {
       // Ha a profil lekérés hibázik (pl. backend nem elérhető), ne dobjuk ki a token-t.
       authLinks.forEach((link) => {
         link.textContent = "Fiókom";
-        link.setAttribute("href", "/account.html");
+        link.setAttribute("href", "/account");
         link.classList.add("account-link");
       });
       updateRoleNav(getUserRole());
@@ -410,7 +406,7 @@ async function updateAuthLinks() {
 
     authLinks.forEach((link) => {
       link.textContent = "Fiókom";
-      link.setAttribute("href", "/account.html");
+      link.setAttribute("href", "/account");
       link.classList.add("account-link");
     });
   }
@@ -423,3 +419,11 @@ document.addEventListener("DOMContentLoaded", () => {
   updateAuthLinks();
   initNavToggle();
 });
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/service-worker.js").catch((err) => {
+      console.error("Service worker registration failed:", err);
+    });
+  });
+}

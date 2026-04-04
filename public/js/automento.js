@@ -193,11 +193,11 @@ settingsSaveBtn?.addEventListener("click", async () => {
 
 async function init() {
   if (!getToken()) {
-    window.location.href = "/auth.html";
+    window.location.href = "/auth";
     return;
   }
   if (getUserRole() !== "Provider") {
-    window.location.href = "/map.html";
+    window.location.href = "/map";
     return;
   }
 

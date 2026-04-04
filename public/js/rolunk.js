@@ -1,4 +1,4 @@
-const copyButtons = document.querySelectorAll("[data-copy-email]");
+﻿const copyButtons = document.querySelectorAll("[data-copy-email]");
 const copyToast = document.getElementById("copy-toast");
 let copyToastTimer = null;
 

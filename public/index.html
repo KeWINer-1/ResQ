@@ -1,15 +1,21 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="hu">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="ResQ" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>resq - Kezdőlap</title>
     <link rel="icon" href="src/favicon.ico" />
-    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/styles.css?v=20260404-2" />
   </head>
   <body class="app-theme home-page">
     <header>
-      <a class="brand" href="index.html">
+      <a class="brand" href="/">
         <img src="src/logo.png" alt="resq logo" />
       </a>
       <button class="nav-toggle" type="button" aria-label="Menü">
@@ -18,10 +24,10 @@
         <span></span>
       </button>
       <nav class="nav-links">
-        <a href="map.html">Térkép</a>
-        <a href="support.html" data-support-link>Ügyfélszolgálat</a>
-        <a href="rolunk.html">Rólunk</a>
-        <a href="auth.html" data-auth-link>Belépés</a>
+        <a href="/map">Térkép</a>
+        <a href="/support" data-support-link>Ügyfélszolgálat</a>
+        <a href="/rolunk">Rólunk</a>
+        <a href="/auth" data-auth-link>Belépés</a>
       </nav>
     </header>
 
@@ -30,12 +36,12 @@
         <div>
           <h1>Gyors segítség az úton, egy helyen</h1>
           <p>
-            A ResQ egy autómentő platform, ahol térképen választhatsz szolgáltatót, követheted a mentés állapotát,
-            és közvetlenül üzenhetsz az autómentőnek.
+            A ResQ egy autómentő platform, ahol térképen választhatsz szolgáltatót,
+            követheted a mentés állapotát, és közvetlenül üzenhetsz az autómentőnek.
           </p>
           <div class="cta-row">
-            <a class="btn" href="map.html">Indítás a térképen</a>
-            <a class="btn secondary" href="auth.html">Fiók létrehozása</a>
+            <a class="btn" href="/map">Indítás a térképen</a>
+            <a class="btn secondary" href="/auth">Fiók létrehozása</a>
           </div>
         </div>
         <article class="hero-card home-hero-image-card">
@@ -105,10 +111,10 @@
       </section>
 
       <section class="section">
-        <details class="faq-wrap" open>
+        <details class="faq-wrap">
           <summary class="faq-wrap-title">Gyakori kérdések</summary>
           <div class="faq-list">
-            <details class="faq-item card" open>
+            <details class="faq-item card">
               <summary>Hogyan látom, hol tart a mentés?</summary>
               <div class="faq-answer"><p class="notice">A térképes oldalon élő státuszfrissítéseket kapsz, a mentés teljes folyamatában.</p></div>
             </details>
@@ -130,7 +136,7 @@
             </details>
             <details class="faq-item card">
               <summary>Hol kérek admin segítséget?</summary>
-              <div class="faq-answer"><p class="notice">Az Ügyfélszolgálat menüpontban közvetlenül üzenhetsz az adminnak.</p></div>
+              <div class="faq-answer"><p class="notice">Az ügyfélszolgálat menüpontban közvetlenül üzenhetsz az adminnak.</p></div>
             </details>
           </div>
         </details>
@@ -145,14 +151,14 @@
         </div>
         <div class="site-footer-links">
           <strong>Gyors linkek</strong>
-          <a href="map.html">Térkép</a>
-          <a href="support.html">Ügyfélszolgálat</a>
-          <a href="rolunk.html">Rólunk</a>
-          <a href="auth.html">Belépés</a>
+          <a href="/map">Térkép</a>
+          <a href="/support">Ügyfélszolgálat</a>
+          <a href="/rolunk">Rólunk</a>
+          <a href="/auth">Belépés</a>
         </div>
       </div>
     </footer>
 
-    <script src="js/common.js"></script>
+    <script src="js/common.js?v=20260404-2"></script>
   </body>
 </html>

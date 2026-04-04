@@ -3,6 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="ResQ" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>resq - Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11,11 +17,11 @@
       rel="stylesheet"
     />
     <link rel="icon" href="src/favicon.ico" />
-    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/styles.css?v=20260404-2" />
   </head>
-  <body class="app-theme">
+  <body class="app-theme admin-page">
     <header>
-      <a class="brand" href="map.html">
+      <a class="brand" href="/map">
         <img src="src/logo.png" alt="resq logo" />
       </a>
       <button class="nav-toggle" type="button" aria-label="Menu">
@@ -24,25 +30,25 @@
         <span></span>
       </button>
       <nav class="nav-links">
-        <a href="rolunk.html">Rólunk</a>
-        <a href="admin.html">Segítségkérések</a>
-        <a href="auth.html" data-auth-link>Belépés</a>
+        <a href="/rolunk">Rólunk</a>
+        <a href="/admin">Segítségkérések</a>
+        <a href="/auth" data-auth-link>Belépés</a>
       </nav>
     </header>
 
     <section class="section">
-      <div class="map-layout" style="grid-template-columns: minmax(260px, 360px) 1fr;">
+      <div class="map-layout admin-main-layout chat-collapsed" id="admin-main-layout">
         <aside class="sidebar">
           <h2>Segítségkérések</h2>
           <p class="notice" id="admin-message"></p>
           <div id="admin-filters" class="conversation-filters"></div>
           <div id="admin-conversations"></div>
         </aside>
-        <div class="card" style="padding: 16px;">
+        <div class="card admin-chat-card" id="admin-chat-card" style="display: none;">
           <h3 id="admin-convo-title">Válassz beszélgetést</h3>
           <div id="admin-chat-panel" style="display: none;">
             <div class="chat-box" id="admin-messages"></div>
-            <div class="split" style="grid-template-columns: 1fr auto; margin-top: 12px;">
+            <div class="split admin-chat-input-row">
               <div>
                 <input id="admin-input" type="text" placeholder="Üzenet..." />
               </div>
@@ -60,8 +66,75 @@
       </div>
     </section>
 
-    <script src="js/common.js"></script>
-    <script src="js/admin.js"></script>
+    <section class="section">
+      <div class="card">
+        <div class="split admin-section-head-two">
+          <h3 style="margin: 0;">Aktív mentések kezelése</h3>
+          <button class="btn secondary" id="admin-requests-refresh" type="button">Frissítés</button>
+        </div>
+        <p class="notice" id="admin-requests-message"></p>
+        <div id="admin-requests-list"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="card">
+        <div class="split admin-section-head-three">
+          <h3 style="margin: 0;">Mentés előzmények</h3>
+          <button class="btn secondary" id="admin-history-clear" type="button">Szűrés törlése</button>
+          <button class="btn secondary" id="admin-history-refresh" type="button">Szűrés</button>
+        </div>
+        <div class="split admin-history-filters">
+          <label>
+            <span class="notice">Konkrét nap</span>
+            <input id="admin-history-date-exact" type="date" />
+          </label>
+          <label>
+            <span class="notice">Dátumtól</span>
+            <input id="admin-history-date-from" type="date" />
+          </label>
+          <label>
+            <span class="notice">Dátumig</span>
+            <input id="admin-history-date-to" type="date" />
+          </label>
+          <label>
+            <span class="notice">Autómentő</span>
+            <input id="admin-history-provider" type="text" placeholder="Név vagy telefon" />
+          </label>
+          <label>
+            <span class="notice">Autós</span>
+            <input id="admin-history-user" type="text" placeholder="Név vagy email" />
+          </label>
+          <label>
+            <span class="notice">Gyors időszak</span>
+            <select id="admin-history-range">
+              <option value="">Nincs</option>
+              <option value="7">Utolsó 7 nap</option>
+              <option value="30">Utolsó 30 nap</option>
+            </select>
+          </label>
+        </div>
+        <p class="notice" id="admin-history-message"></p>
+        <div class="split admin-history-toolbar">
+          <label>
+            <span class="notice">Elem/oldal</span>
+            <select id="admin-history-page-size">
+              <option value="5" selected>5</option>
+              <option value="4">4</option>
+              <option value="3">3</option>
+              <option value="2">2</option>
+              <option value="1">1</option>
+            </select>
+          </label>
+          <p class="notice" id="admin-history-page-info"></p>
+        </div>
+        <div id="admin-history-list"></div>
+        <div class="admin-history-pagination" id="admin-history-pagination"></div>
+      </div>
+    </section>
+
+    <script src="js/common.js?v=20260404-2"></script>
+    <script src="js/admin.js?v=20260404-2"></script>
   </body>
 </html>
 

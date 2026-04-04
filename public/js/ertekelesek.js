@@ -41,13 +41,13 @@ function renderItems(items) {
 
 async function init() {
   if (!getToken()) {
-    window.location.href = "/auth.html";
+    window.location.href = "/auth";
     return;
   }
 
   const role = getUserRole();
   if (role !== "Provider") {
-    window.location.href = role === "Admin" ? "/admin.html" : "/map.html";
+    window.location.href = role === "Admin" ? "/admin" : "/map";
     return;
   }
 
