@@ -189,6 +189,7 @@ async function loadAccount() {
   }
 
   try {
+    showAlert("");
     const profile = await getMyProfile();
     currentProfile = profile;
     if (profile?.role === "Admin") {
@@ -213,7 +214,18 @@ async function loadAccount() {
     showAlert("");
     messageEl.textContent = "";
   } catch (err) {
-    showAlert(friendlyAccountError(err));
+    const cached = getCachedProfile();
+    if (cached) {
+      currentProfile = cached;
+      renderProfile(cached);
+      if (detailsEl) detailsEl.style.display = "block";
+      if (adminProfileEl) adminProfileEl.style.display = "none";
+      setEditMode(false);
+      showAlert("");
+      messageEl.textContent = "";
+      return;
+    }
+    showAlert("");
     messageEl.textContent = "";
     if (detailsEl) detailsEl.style.display = "none";
     if (adminProfileEl) adminProfileEl.style.display = "none";
