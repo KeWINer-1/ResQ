@@ -195,6 +195,7 @@ function applyFixedNavOrder(role) {
   const orderIndex = new Map(orderedKeys.map((key, idx) => [key, idx + 1]));
 
   document.querySelectorAll(".nav-links a").forEach((link) => {
+    if (link.hasAttribute("data-brand-link")) return;
     const key = navKeyForLink(link);
     const order = orderIndex.get(key) || 99;
     link.style.order = String(order);
@@ -207,6 +208,7 @@ function updateRoleNav(role) {
   const navLinks = document.querySelectorAll(".nav-links a");
 
   navLinks.forEach((link) => {
+    if (link.hasAttribute("data-brand-link")) return;
     if (!isHomeOrMapLink(link)) return;
     link.textContent = "Térkép";
     link.setAttribute("href", role === "Provider" ? "/provider.html" : "/map.html");
@@ -214,6 +216,7 @@ function updateRoleNav(role) {
 
   if (role === "User") {
     navLinks.forEach((link) => {
+      if (link.hasAttribute("data-brand-link")) return;
       link.style.display = "";
     });
     providerLinks.forEach((link) => {
@@ -229,6 +232,7 @@ function updateRoleNav(role) {
 
   if (role === "Admin") {
     navLinks.forEach((link) => {
+      if (link.hasAttribute("data-brand-link")) return;
       const href = String(link.getAttribute("href") || "").toLowerCase();
       const isAuth = link.hasAttribute("data-auth-link");
       const isAdminSupport =
@@ -248,6 +252,7 @@ function updateRoleNav(role) {
 
   if (role === "Provider") {
     navLinks.forEach((link) => {
+      if (link.hasAttribute("data-brand-link")) return;
       if (isHomeOrMapLink(link) || navKeyForLink(link) === "map") {
         link.textContent = "Térkép";
         link.setAttribute("href", "/provider.html");
@@ -355,6 +360,20 @@ function ensureBrandGoesHome() {
   });
 }
 
+function ensureMobileNavBrand() {
+  const nav = document.querySelector(".nav-links");
+  if (!nav) return;
+  if (nav.querySelector(".nav-brand-mobile")) return;
+  const brand = document.querySelector("a.brand");
+  if (!brand) return;
+  const clone = brand.cloneNode(true);
+  clone.classList.add("nav-brand-mobile");
+  clone.setAttribute("data-brand-link", "true");
+  clone.setAttribute("href", "/index.html");
+  clone.style.order = "0";
+  nav.prepend(clone);
+}
+
 function logout() {
   clearToken();
   window.location.href = "/auth.html";
@@ -418,6 +437,7 @@ async function updateAuthLinks() {
 
 document.addEventListener("DOMContentLoaded", () => {
   ensureBrandGoesHome();
+  ensureMobileNavBrand();
   ensureAccountLinkAtEnd();
   ensureAboutBeforeAccount();
   updateAuthLinks();
